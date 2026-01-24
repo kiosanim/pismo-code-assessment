@@ -1,0 +1,5 @@
+app:
+  env: "development"
+database:
+  dsn: "postgres://pismo:123456@localhost:5432/pismo_db?sslmode=disable"
+
