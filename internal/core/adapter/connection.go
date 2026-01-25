@@ -1,9 +1,14 @@
 package adapter
 
 import (
+	"context"
 	"database/sql"
-	"github.com/kiosanim/pismo-code-assessment/internal/infra/config/dto"
+	"errors"
 	"github.com/uptrace/bun"
+)
+
+var (
+	ConnectionFailedError = errors.New("Failed to connect to database")
 )
 
 type ConnectionData struct {
@@ -12,5 +17,5 @@ type ConnectionData struct {
 }
 
 type Connection interface {
-	Connect(cfg dto.Configuration) (*sql.DB, error)
+	Connect(ctx context.Context) (*ConnectionData, error)
 }

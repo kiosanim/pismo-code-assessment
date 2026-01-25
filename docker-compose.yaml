@@ -1,7 +1,7 @@
 services:
   postgres:
     container_name: postgres
-    image: postgres:115-alpine
+    image: postgres:15-alpine
     environment:
       - POSTGRES_USER=pismo
       - POSTGRES_PASSWORD=123456

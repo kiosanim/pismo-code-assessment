@@ -2,7 +2,6 @@ package config
 
 import (
 	"errors"
-	"github.com/kiosanim/pismo-code-assessment/internal/infra/config/dto"
 )
 
 var (
@@ -10,7 +9,19 @@ var (
 	ConfigFileUnmarshalError = errors.New("config unmarshal error")
 )
 
+type DatabaseConfig struct {
+	Dsn string `yaml:"dsn"`
+}
+type AppConfig struct {
+	Env string `mapstructure:"env"`
+}
+
+type Configuration struct {
+	App      AppConfig      `mapstructure:"app"`
+	Database DatabaseConfig `mapstructure:"database"`
+}
+
 type Config interface {
-	LoadConfig(path string) (*dto.Configuration, error)
-	MustLoadConfig(path string) *dto.Configuration
+	LoadConfig(path string) (*Configuration, error)
+	MustLoadConfig(path string) *Configuration
 }

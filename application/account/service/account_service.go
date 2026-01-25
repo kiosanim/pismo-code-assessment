@@ -24,7 +24,7 @@ func (a *AccountService) FindByID(ctx context.Context, request dto.FindAccountBy
 		return nil, err
 	}
 	if output == nil {
-		return nil, account.AccountNotFoundError
+		return nil, account.AccountServiceNotFoundError
 	}
 	response := mapper.FindEntityToResponse(output)
 	return response, nil

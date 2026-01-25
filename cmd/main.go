@@ -2,60 +2,68 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/adapter"
+	"github.com/kiosanim/pismo-code-assessment/internal/domains/account"
+	"github.com/kiosanim/pismo-code-assessment/internal/domains/transaction"
 	"github.com/kiosanim/pismo-code-assessment/internal/infra/config"
-	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/pgdialect"
-	"github.com/uptrace/bun/driver/pgdriver"
+	"github.com/kiosanim/pismo-code-assessment/internal/infra/database/connection"
+	"github.com/kiosanim/pismo-code-assessment/internal/infra/database/model"
+	"github.com/kiosanim/pismo-code-assessment/internal/infra/database/repository"
 	"log"
 	"os"
+	"time"
 )
 
-// User model
-type User struct {
-	bun.BaseModel `bun:"table:users,alias:u"`
-	ID            int64  `bun:",pk,autoincrement"`
-	Name          string `bun:",notnull"`
-	Email         string `bun:",unique"`
-}
-
 func main() {
+
 	path, _ := os.Getwd()
 	cfg, err := config.LoadConfig(path)
 	if err != nil {
 		log.Fatal(err)
 	}
+	var conn adapter.Connection = connection.NewPostgresConnection(cfg)
 	ctx := context.Background()
-	// Using pgdriver (recommended)
-	sqldb := sql.OpenDB(pgdriver.NewConnector(
-		pgdriver.WithDSN(cfg.Database.Dsn),
-	))
-	if err := sqldb.Ping(); err != nil {
-		log.Fatal("Failed to connect to database:", err)
+	dbConnectionData, err := conn.Connect(ctx)
+	if err != nil {
+		panic(err)
 	}
-	defer sqldb.Close()
-	// Create Bun database instance
-	db := bun.NewDB(sqldb, pgdialect.New())
-	// Create table
-	_, err = db.NewCreateTable().Model((*User)(nil)).IfNotExists().Exec(ctx)
+	repo := repository.NewAccountPostgresRepository(dbConnectionData)
+
+	_, err = dbConnectionData.BunDB.NewCreateTable().Model((*model.AccountModel)(nil)).IfNotExists().Exec(ctx)
 	if err != nil {
 		panic(err)
 	}
 
-	// Insert user
-	user := &User{Name: "John Doe", Email: "john@example.com"}
-	_, err = db.NewInsert().Model(user).Exec(ctx)
+	_, err = dbConnectionData.BunDB.NewCreateTable().Model((*model.TransactionModel)(nil)).IfNotExists().Exec(ctx)
 	if err != nil {
 		panic(err)
 	}
 
-	// Select user
-	var selectedUser User
-	err = db.NewSelect().Model(&selectedUser).Where("email = ?", "john@example.com").Scan(ctx)
+	// Insert Account
+	newAcc := &account.Account{DocumentNumber: "00000000000"}
+	acc, err := repo.Save(ctx, newAcc)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Account inserido: %+v\n", acc)
+
+	acc, err = repo.FindByID(ctx, 1)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("User: %+v\n", selectedUser)
+	fmt.Printf("Account Pesquisado: %+v\n", acc)
+	repo2 := repository.NewTransactionPostgresRepository(dbConnectionData)
+	newtransaction := &transaction.Transaction{
+		AccountID:       1,
+		OperationTypeID: transaction.Purchase,
+		Amount:          100.00,
+		EventDate:       time.Now(),
+	}
+	trs, err := repo2.Save(ctx, newtransaction)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Transaction inserido: %+v\n", trs)
 }

@@ -96,10 +96,10 @@ func (s *AccountServiceTestSuite) TestFindByIDNotFound() {
 		accountID,
 	).Return(
 		nil,
-		account.AccountNotFoundError)
+		account.AccountServiceNotFoundError)
 	input := dto.FindAccountByIdRequest{AccountID: accountID}
 	output, err := s.service.FindByID(s.ctx, input)
-	s.ErrorIs(err, account.AccountNotFoundError, account.AccountNotFoundError.Error())
+	s.ErrorIs(err, account.AccountServiceNotFoundError, account.AccountServiceNotFoundError.Error())
 	s.Nil(output, "find account by ID should return nil because no Account was found")
 }
 
