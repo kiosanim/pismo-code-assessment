@@ -8,18 +8,18 @@ import (
 )
 
 type AccountService struct {
-	repository account.AccountRepository
+	accountRepository account.AccountRepository
 }
 
 func NewAccountService(repository account.AccountRepository) *AccountService {
-	return &AccountService{repository: repository}
+	return &AccountService{accountRepository: repository}
 }
 
 func (a *AccountService) FindByID(ctx context.Context, request dto.FindAccountByIdRequest) (*dto.FindAccountByIdResponse, error) {
 	if request.AccountID <= 0 {
 		return nil, account.AccountServiceInvalidParametersError
 	}
-	output, err := a.repository.FindByID(ctx, request.AccountID)
+	output, err := a.accountRepository.FindByID(ctx, request.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +35,7 @@ func (a *AccountService) Create(ctx context.Context, request dto.CreateAccountRe
 		return nil, account.AccountServiceInvalidParametersError
 	}
 	accountRequest := mapper.CreateDTOToEntity(request)
-	output, err := a.repository.Save(ctx, accountRequest)
+	output, err := a.accountRepository.Save(ctx, accountRequest)
 	if err != nil {
 		return nil, err
 	}

@@ -10,7 +10,7 @@ type CreateAccountResponse struct {
 }
 
 type FindAccountByIdRequest struct {
-	AccountID int64 `json:"account_id" validate:"required,number,gt=0"`
+	AccountID int64 `uri:"account_id" binding:"required" validate:"required,number,gt=0"`
 }
 
 type FindAccountByIdResponse struct {

@@ -12,6 +12,6 @@ var (
 )
 
 type Service interface {
-	FindByID(ctx context.Context, input dto.FindAccountByIdRequest) (*dto.FindAccountByIdResponse, error)
-	Create(ctx context.Context, input dto.CreateAccountRequest) (*dto.CreateAccountResponse, error)
+	FindByID(ctx context.Context, request dto.FindAccountByIdRequest) (*dto.FindAccountByIdResponse, error)
+	Create(ctx context.Context, response dto.CreateAccountRequest) (*dto.CreateAccountResponse, error)
 }

@@ -26,6 +26,9 @@ func (t *TransactionService) Create(ctx context.Context, request dto.CreateTrans
 		return nil, err
 	}
 	newTransaction := mapper.CreateDTOToEntity(request)
+	if newTransaction.OperationTypeID != transaction.Payment {
+		newTransaction.Amount *= -1
+	}
 	response, err := t.transactionRepository.Save(ctx, newTransaction)
 	if err != nil {
 		return nil, err

@@ -1,16 +1,20 @@
 package factory
 
 import (
-	"github.com/kiosanim/pismo-code-assessment/application/account/service"
+	accountSvc "github.com/kiosanim/pismo-code-assessment/application/account/service"
+	transactionSvc "github.com/kiosanim/pismo-code-assessment/application/transaction/service"
+	"github.com/kiosanim/pismo-code-assessment/interfaces/http/handler"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/config"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/account"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/transaction"
 )
 
 type Factory interface {
-	Config() *config.Config
+	Configuration() *config.Configuration
 	AccountRepository() account.AccountRepository
-	AccountService() service.AccountService
+	AccountService() accountSvc.AccountService
 	TransactionRepository() transaction.TransactionRepository
-	//TransactionService() service.TransactionService
+	TransactionService() transactionSvc.TransactionService
+	AccountHandler() *handler.AccountHandler
+	TransactionHandler() *handler.TransactionHandler
 }
