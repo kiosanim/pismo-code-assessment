@@ -5,7 +5,7 @@
 create table if not exists accounts
 (
     account_id      bigserial primary key,
-    document_number varchar not null
+    document_number varchar not null unique
 );
 
 alter table if exists accounts

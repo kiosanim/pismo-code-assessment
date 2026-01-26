@@ -1,9 +1,13 @@
-.PHONY: go docker migration_tool
+.PHONY: go docker migration_tool swag
 
 MIGRATION_TOOL = "cmd/migrate/migration_tool.go"
 
 #create.config:
 #	@echo "TODO: CRIAR CONFIG FILE" <-------------------- FALTA DESENVOLVER
+
+run:
+	@echo "Running API Server"
+	go run cmd/api/main.go
 
 db-migration-up:
 	@echo "Running Migration Tool create"
@@ -36,3 +40,5 @@ docker-down-db:
 	@echo "Stop and remove database container"
 	docker compose down -d postgres
 
+swagger:
+	swag init -g cmd/api/main.go -o docs

@@ -7,8 +7,9 @@ import (
 )
 
 var (
-	AccountServiceInvalidParametersError = errors.New("account service invalid parameter")
-	AccountServiceNotFoundError          = errors.New("account not found")
+	AccountServiceInvalidParametersError              = errors.New("account service invalid parameter")
+	AccountServiceNotFoundError                       = errors.New("account not found")
+	AccountServiceAlreadyExistsForDocumentNumberError = errors.New("an account already exists for this document number")
 )
 
 type Service interface {

@@ -2,10 +2,15 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/logger"
 	"github.com/kiosanim/pismo-code-assessment/internal/infra/factory"
 )
 
-func NewRouterFactory(appFactory factory.AppFactory) *gin.Engine {
+const (
+	ComponentName = "RouterFactory"
+)
+
+func NewRouterFactory(appFactory factory.AppFactory, log logger.Logger) *gin.Engine {
 	accountRepo := appFactory.AccountRepository()
 	if accountRepo == nil {
 		panic("Account Repository not initialized")
@@ -30,5 +35,5 @@ func NewRouterFactory(appFactory factory.AppFactory) *gin.Engine {
 	if transactionHandler == nil {
 		panic("Transaction Handler not initialized")
 	}
-	return SetupRouter(*accountHandler, *transactionHandler)
+	return SetupRouter(*accountHandler, *transactionHandler, log)
 }
