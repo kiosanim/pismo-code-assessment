@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/kiosanim/pismo-code-assessment/application/account/dto"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/errors"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/logger"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/account"
 	"net/http"
@@ -34,7 +35,7 @@ func NewAccountHandler(service account.Service, log logger.Logger) *AccountHandl
 func (h *AccountHandler) CreateAccount(c *gin.Context) {
 	var req dto.CreateAccountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": account.AccountServiceInvalidParametersError.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": errors.InvalidParametersError.Error()})
 		return
 	}
 	res, err := h.service.Create(c.Request.Context(), req)
@@ -58,7 +59,7 @@ func (h *AccountHandler) GetAccountByID(c *gin.Context) {
 	accountId := c.Param("account_id")
 	accountId64, err := strconv.ParseInt(accountId, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": account.AccountServiceInvalidParametersError.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": errors.InvalidParametersError.Error()})
 		return
 	}
 	res, err := h.service.FindByID(c.Request.Context(), dto.FindAccountByIdRequest{AccountID: accountId64})

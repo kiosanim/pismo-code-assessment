@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/kiosanim/pismo-code-assessment/application/account/dto"
 	"github.com/kiosanim/pismo-code-assessment/application/account/mapper"
+	coreerr "github.com/kiosanim/pismo-code-assessment/internal/core/errors"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/logger"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/account"
 )
@@ -24,14 +25,14 @@ func NewAccountService(repository account.AccountRepository, log logger.Logger) 
 func (a *AccountService) FindByID(ctx context.Context, request dto.FindAccountByIdRequest) (*dto.FindAccountByIdResponse, error) {
 	a.log.Debug(a.componentName+".FindByID", "request", request)
 	if request.AccountID <= 0 {
-		return nil, account.AccountServiceInvalidParametersError
+		return nil, coreerr.InvalidParametersError
 	}
 	output, err := a.accountRepository.FindByID(ctx, request.AccountID)
 	if err != nil {
 		return nil, err
 	}
 	if output == nil {
-		return nil, account.AccountServiceNotFoundError
+		return nil, coreerr.AccountNotFoundError
 	}
 	response := mapper.FindEntityToResponse(output)
 	return response, nil
@@ -40,14 +41,14 @@ func (a *AccountService) FindByID(ctx context.Context, request dto.FindAccountBy
 func (a *AccountService) Create(ctx context.Context, request dto.CreateAccountRequest) (*dto.CreateAccountResponse, error) {
 	a.log.Debug(a.componentName+".Create", "request", request)
 	if request.DocumentNumber == "" || account.IsValidDocumentNumber(request.DocumentNumber) != nil {
-		return nil, account.AccountServiceInvalidParametersError
+		return nil, coreerr.InvalidParametersError
 	}
 	accountByDocumentNumber, err := a.accountRepository.FindByDocumentNumber(ctx, request.DocumentNumber)
-	if err != nil && !errors.Is(err, account.AccountServiceNotFoundError) {
+	if err != nil && !errors.Is(err, coreerr.AccountNotFoundError) {
 		return nil, err
 	}
 	if accountByDocumentNumber != nil {
-		return nil, account.AccountServiceAlreadyExistsForDocumentNumberError
+		return nil, coreerr.AccountAlreadyExistsForDocumentNumberError
 	}
 	accountRequest := mapper.CreateDTOToEntity(request)
 	output, err := a.accountRepository.Save(ctx, accountRequest)

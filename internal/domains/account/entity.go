@@ -1,6 +1,7 @@
 package account
 
 import (
+	"github.com/kiosanim/pismo-code-assessment/internal/core/errors"
 	"github.com/paemuri/brdoc"
 	"regexp"
 )
@@ -20,7 +21,7 @@ func IsValidDocumentNumber(documentNumber string) error {
 	if brdoc.IsCPF(documentNumber) || brdoc.IsCNPJ(documentNumber) {
 		return nil
 	}
-	return AccountServiceInvalidParametersError
+	return errors.InvalidParametersError
 }
 
 // SanitizeDocumentNumber removes all characters except digits from a DocumentNumber

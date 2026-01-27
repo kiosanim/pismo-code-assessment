@@ -1,14 +1,5 @@
 package config
 
-import (
-	"errors"
-)
-
-var (
-	ConfigFileNotFountError  = errors.New("config file not found")
-	ConfigFileUnmarshalError = errors.New("config unmarshal error")
-)
-
 type DatabaseConfig struct {
 	Dsn string `yaml:"dsn"`
 }

@@ -1,7 +1,9 @@
 .PHONY: go docker migration_tool swag
 
 MIGRATION_TOOL = "cmd/migrate/migration_tool.go"
-IMAGE_NAME = pismo-code-assesment
+MIGRATION_TOOL_BIN = "/app/app_migration_tool"
+IMAGE_NAME = pismo-api
+CONTAINER_NAME = pismo-api
 
 #create.config:
 #	@echo "TODO: CRIAR CONFIG FILE" <-------------------- FALTA DESENVOLVER
@@ -17,22 +19,33 @@ install:
 
 db-migration-up:
 	@echo "Running Migration Tool create"
-	go run $(MIGRATION_TOOL) up
+	go run cmd/migrate/main.go up
 
 db-migration-down:
-	@echo "Running Migration Tool down"
+	@echo "Running Migration Tool"
 	go run $(MIGRATION_TOOL) down
 
 db-migration-status:
 	@echo "Running Migration Tool status"
 	go run $(MIGRATION_TOOL) status
 
+db-migration-docker-up:
+	@echo "Running Migration Tool create from docker container"
+	docker exec -it $(CONTAINER_NAME) $(MIGRATION_TOOL_BIN) up
+
+db-migration-docker-down:
+	@echo "Running Migration Tool down from docker container"
+	docker exec -it $(CONTAINER_NAME) $(MIGRATION_TOOL_BIN) down
+
+db-migration-docker-status:
+	@echo "Running Migration Tool status from docker container"
+	docker exec -it $(CONTAINER_NAME) $(MIGRATION_TOOL_BIN) status
+
 test-unit:
 	@echo "Running unit tests"
 	go test -v ./...
 
-docker-build:
-	docker build
+docker-provision: docker-up db-migration-docker-up
 
 docker-up:
 	@echo "Provisioning all containers from docker-compose.yaml"

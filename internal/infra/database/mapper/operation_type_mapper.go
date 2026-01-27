@@ -5,16 +5,6 @@ import (
 	"github.com/kiosanim/pismo-code-assessment/internal/infra/database/model"
 )
 
-func ToOperationTypeModel(entity *transaction.OperationType) *model.OperationTypeModel {
-	if entity == nil {
-		return nil
-	}
-	return &model.OperationTypeModel{
-		OperationTypeID: entity.OperationTypeID,
-		Description:     entity.Description,
-	}
-}
-
 func ToOperationTypeEntity(model *model.OperationTypeModel) *transaction.OperationType {
 	if model == nil {
 		return nil

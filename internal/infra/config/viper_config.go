@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/config"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/errors"
 	"github.com/spf13/viper"
 	"os"
 )
@@ -20,11 +21,11 @@ func LoadConfig(path string) (*config.Configuration, error) {
 	v.AutomaticEnv()
 
 	if err := v.ReadInConfig(); err != nil {
-		return nil, config.ConfigFileNotFountError
+		return nil, errors.ConfigFileNotFountError
 	}
 	var cfg config.Configuration
 	if err := v.Unmarshal(&cfg); err != nil {
-		return nil, config.ConfigFileUnmarshalError
+		return nil, errors.ConfigFileUnmarshalError
 	}
 	return &cfg, nil
 }

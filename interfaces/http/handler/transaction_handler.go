@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/kiosanim/pismo-code-assessment/application/transaction/dto"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/errors"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/logger"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/transaction"
 	"net/http"
@@ -33,7 +34,7 @@ func NewTransactionHandler(service transaction.Service, log logger.Logger) *Tran
 func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 	var req dto.CreateTransactionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": transaction.TransactionServiceInvalidParametersError.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": errors.InvalidParametersError.Error()})
 		return
 	}
 	res, err := h.service.Create(c.Request.Context(), req)

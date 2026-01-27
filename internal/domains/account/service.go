@@ -2,14 +2,7 @@ package account
 
 import (
 	"context"
-	"errors"
 	"github.com/kiosanim/pismo-code-assessment/application/account/dto"
-)
-
-var (
-	AccountServiceInvalidParametersError              = errors.New("account service invalid parameter")
-	AccountServiceNotFoundError                       = errors.New("account not found")
-	AccountServiceAlreadyExistsForDocumentNumberError = errors.New("an account already exists for this document number")
 )
 
 type Service interface {

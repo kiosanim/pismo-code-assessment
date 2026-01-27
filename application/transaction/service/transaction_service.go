@@ -4,9 +4,16 @@ import (
 	"context"
 	"github.com/kiosanim/pismo-code-assessment/application/transaction/dto"
 	"github.com/kiosanim/pismo-code-assessment/application/transaction/mapper"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/errors"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/logger"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/account"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/transaction"
+	"time"
+)
+
+const (
+	changeValueMultiplier = -1.0
+	purchaseOperationCode = 4
 )
 
 type TransactionService struct {
@@ -38,6 +45,7 @@ func (t *TransactionService) Create(ctx context.Context, request dto.CreateTrans
 	}
 	newTransaction := mapper.CreateDTOToEntity(request)
 	newTransaction.Amount = t.reverseAmountSign(newTransaction) //Change the amount sign for debt operations
+	newTransaction.EventDate = time.Now()
 	response, err := t.transactionRepository.Save(ctx, newTransaction)
 	if err != nil {
 		return nil, err
@@ -63,21 +71,19 @@ func (t *TransactionService) isAValidOperationType(ctx context.Context, operatio
 
 func (t *TransactionService) validateRequestParameters(ctx context.Context, request dto.CreateTransactionRequest) error {
 	if request.AccountID <= 0 {
-		return transaction.TransactionServiceInvalidAccountIDError
+		return errors.TransactionInvalidAccountIDError
 	}
 	if request.Amount <= 0 {
-		return transaction.TransactionServiceInvalidAmountNegativeError
+		return errors.TransactionInvalidAmountNegativeError
 	}
 	if !t.isAValidOperationType(ctx, request.OperationTypeID) {
-		return transaction.TransactionServiceInvalidOperationTypeError
+		return errors.TransactionInvalidOperationTypeError
 	}
 	return nil
 }
 
 // reverseAmountSign Change the amount sign for debt operations
 func (t *TransactionService) reverseAmountSign(newTransaction *transaction.Transaction) float64 {
-	changeValueMultiplier := -1.0
-	purchaseOperationCode := 1
 	if newTransaction.OperationTypeID != purchaseOperationCode {
 		newTransaction.Amount *= changeValueMultiplier
 	}

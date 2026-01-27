@@ -14,39 +14,6 @@ import (
 	"strings"
 )
 
-// func main() {
-// path, _ := os.Getwd()
-// cfg, err := config.LoadConfig(path)
-//
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//
-// db, err := sql.Open("postgres", cfg.Database.Dsn)
-//
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//
-// goose.SetDialect("postgres")
-// fmt.Println("Connected to database")
-// migrationsFolder := "internal/infra/database/migrations"
-// fmt.Println("Migrations folder is", migrationsFolder)
-// fmt.Println("Running migrations")
-// //err = goose.UpContext(context.Background(), db, migrationsFolder)
-// //if err != nil {
-// //	log.Fatalf("failed to run migrations: %v\n", err)
-// //}
-// //
-// err = goose.DownToContext(context.Background(), db, migrationsFolder, 0)
-//
-//	if err != nil {
-//		log.Fatalf("failed to run migrations: %v\n", err)
-//	}
-//
-// fmt.Println("Migrations applied successfully")
-// }
-
 const MigrationsFolder = "internal/infra/database/migrations"
 
 func up(ctx context.Context, db *sql.DB) *cobra.Command {

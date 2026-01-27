@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/adapter"
+	coreerr "github.com/kiosanim/pismo-code-assessment/internal/core/errors"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/logger"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/account"
 	"github.com/kiosanim/pismo-code-assessment/internal/infra/database/mapper"
@@ -30,22 +31,29 @@ func (a *AccountPostgresRepository) FindByID(ctx context.Context, accountID int6
 	a.log.Debug(a.componentName+".FindByID", "request", accountID)
 	var selectedAccount model.AccountModel
 	err := a.connectionData.BunDB.NewSelect().Model(&selectedAccount).Where("account_id = ?", accountID).Scan(ctx)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, account.AccountRepositoryNotFoundError
-	} else if err != nil {
-		return nil, err
+	acc, err, done := a.validateAccountError(err)
+	if done {
+		return acc, err
 	}
 	return mapper.ToAccountEntity(&selectedAccount), nil
+}
+
+func (a *AccountPostgresRepository) validateAccountError(err error) (*account.Account, error, bool) {
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, coreerr.AccountNotFoundError, true
+	} else if err != nil {
+		return nil, err, true
+	}
+	return nil, nil, false
 }
 
 func (a *AccountPostgresRepository) FindByDocumentNumber(ctx context.Context, documentNumber string) (*account.Account, error) {
 	a.log.Debug(a.componentName+".FindByDocumentNumber", "request", documentNumber)
 	var selectedAccount model.AccountModel
 	err := a.connectionData.BunDB.NewSelect().Model(&selectedAccount).Where("document_number = ?", documentNumber).Scan(ctx)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, account.AccountRepositoryNotFoundError
-	} else if err != nil {
-		return nil, err
+	acc, err, done := a.validateAccountError(err)
+	if done {
+		return acc, err
 	}
 	return mapper.ToAccountEntity(&selectedAccount), nil
 }
@@ -54,7 +62,7 @@ func (a *AccountPostgresRepository) Save(ctx context.Context, newAccount *accoun
 	a.log.Debug(a.componentName+".Save", "request", newAccount)
 	accountModel := mapper.ToAccountModel(newAccount)
 	if accountModel == nil {
-		return nil, account.AccountRepositoryInvalidParametersError
+		return nil, coreerr.InvalidParametersError
 	}
 	tx, err := a.connectionData.BunDB.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {

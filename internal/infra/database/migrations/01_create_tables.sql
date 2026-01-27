@@ -26,11 +26,11 @@ alter table if exists operation_types
 
 create table if not exists transactions
 (
-    transaction_id bigserial primary key,
-    account_id     bigint                   not null references accounts (account_id),
-    operation_type bigint                   not null references operation_types (operation_type_id),
-    amount         double precision         not null,
-    event_date     timestamp with time zone not null
+    transaction_id    bigserial primary key,
+    account_id        bigint                   not null references accounts (account_id),
+    operation_type_id bigint                   not null references operation_types (operation_type_id),
+    amount            double precision         not null,
+    event_date        timestamp with time zone not null
 );
 
 alter table transactions

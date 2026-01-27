@@ -2,12 +2,6 @@ package account
 
 import (
 	"context"
-	"errors"
-)
-
-var (
-	AccountRepositoryInvalidParametersError = errors.New("invalid parameters")
-	AccountRepositoryNotFoundError          = errors.New("account not found")
 )
 
 type AccountRepository interface {
