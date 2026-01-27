@@ -1,6 +1,7 @@
 .PHONY: go docker migration_tool swag
 
 MIGRATION_TOOL = "cmd/migrate/migration_tool.go"
+IMAGE_NAME = pismo-code-assesment
 
 #create.config:
 #	@echo "TODO: CRIAR CONFIG FILE" <-------------------- FALTA DESENVOLVER
@@ -8,6 +9,11 @@ MIGRATION_TOOL = "cmd/migrate/migration_tool.go"
 run:
 	@echo "Running API Server"
 	go run cmd/api/main.go
+
+install:
+	@echo "Running Migration Tool create"
+	go mod tidy
+	go mod vendor
 
 db-migration-up:
 	@echo "Running Migration Tool create"
@@ -22,11 +28,15 @@ db-migration-status:
 	go run $(MIGRATION_TOOL) status
 
 test-unit:
+	@echo "Running unit tests"
 	go test -v ./...
+
+docker-build:
+	docker build
 
 docker-up:
 	@echo "Provisioning all containers from docker-compose.yaml"
-	docker compose up -d
+	docker compose up -d --build
 
 docker-destroy:
 	@echo "Destroying all containers from docker-compose.yaml removing orphans and volumes"
@@ -41,4 +51,5 @@ docker-down-db:
 	docker compose down -d postgres
 
 swagger:
+	@echo "Generating Swagger Docs"
 	swag init -g cmd/api/main.go -o docs

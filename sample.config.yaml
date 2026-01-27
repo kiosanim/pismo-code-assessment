@@ -4,5 +4,4 @@ app:
   loglevel: "info"
 
 database:
-  dsn: "postgres://pismo:123456@localhost:5432/pismo_db?sslmode=disable"
-
+  dsn: "postgres://user:password@localhost:5432/db?sslmode=disable"

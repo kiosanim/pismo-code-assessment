@@ -11,8 +11,6 @@ import (
 	"github.com/kiosanim/pismo-code-assessment/internal/infra/database/model"
 )
 
-const ACCOUNT_REPO_NAME = "AccountRepository"
-
 type AccountPostgresRepository struct {
 	connectionData *adapter.ConnectionData
 	componentName  string
@@ -33,7 +31,7 @@ func (a *AccountPostgresRepository) FindByID(ctx context.Context, accountID int6
 	var selectedAccount model.AccountModel
 	err := a.connectionData.BunDB.NewSelect().Model(&selectedAccount).Where("account_id = ?", accountID).Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, account.AccountServiceNotFoundError
+		return nil, account.AccountRepositoryNotFoundError
 	} else if err != nil {
 		return nil, err
 	}
@@ -45,7 +43,7 @@ func (a *AccountPostgresRepository) FindByDocumentNumber(ctx context.Context, do
 	var selectedAccount model.AccountModel
 	err := a.connectionData.BunDB.NewSelect().Model(&selectedAccount).Where("document_number = ?", documentNumber).Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, account.AccountServiceNotFoundError
+		return nil, account.AccountRepositoryNotFoundError
 	} else if err != nil {
 		return nil, err
 	}

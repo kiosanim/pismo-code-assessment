@@ -15,6 +15,6 @@ type Factory interface {
 	AccountService() accountSvc.AccountService
 	TransactionRepository() transaction.TransactionRepository
 	TransactionService() transactionSvc.TransactionService
-	AccountHandler() *handler.AccountHandler
-	TransactionHandler() *handler.TransactionHandler
+	AccountHandler() handler.AccountHandler
+	TransactionHandler() handler.TransactionHandler
 }

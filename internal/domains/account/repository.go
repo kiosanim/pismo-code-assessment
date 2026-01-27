@@ -5,7 +5,10 @@ import (
 	"errors"
 )
 
-var AccountRepositoryInvalidParametersError = errors.New("account repository invalid parameters")
+var (
+	AccountRepositoryInvalidParametersError = errors.New("invalid parameters")
+	AccountRepositoryNotFoundError          = errors.New("account not found")
+)
 
 type AccountRepository interface {
 	FindByID(ctx context.Context, accountID int64) (*Account, error)

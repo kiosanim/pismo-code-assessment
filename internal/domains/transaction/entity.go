@@ -11,13 +11,6 @@ const (
 	Payment
 )
 
-func IsAValidTransactionType(transactionType int) bool {
-	if transactionType >= Purchase && transactionType <= Payment {
-		return true
-	}
-	return false
-}
-
 // Transaction represent a transaction
 type Transaction struct {
 	TransactionID   int64 // Unique identifier of a Transaction
@@ -25,4 +18,9 @@ type Transaction struct {
 	OperationTypeID int
 	Amount          float64
 	EventDate       time.Time
+}
+
+type OperationType struct {
+	OperationTypeID int64
+	Description     string
 }

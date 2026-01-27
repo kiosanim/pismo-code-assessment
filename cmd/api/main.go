@@ -36,8 +36,6 @@ func setupDatabase(ctx context.Context, cfg *corecfg.Configuration) *adapter.Con
 	return dbConnectionData
 }
 
-//TODO Buscar a VARIÁVEL host automaticamente
-
 // @title           Pismo Code Assessment API
 // @version         1.0
 // @description     Customer Account & Transactions

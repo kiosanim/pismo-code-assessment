@@ -16,9 +16,9 @@ type AccountService struct {
 }
 
 func NewAccountService(repository account.AccountRepository, log logger.Logger) *AccountService {
-	accountService := &AccountService{accountRepository: repository, log: log}
+	accountService := AccountService{accountRepository: repository, log: log}
 	accountService.componentName = logger.ComponentNameFromStruct(accountService)
-	return accountService
+	return &accountService
 }
 
 func (a *AccountService) FindByID(ctx context.Context, request dto.FindAccountByIdRequest) (*dto.FindAccountByIdResponse, error) {
@@ -34,7 +34,6 @@ func (a *AccountService) FindByID(ctx context.Context, request dto.FindAccountBy
 		return nil, account.AccountServiceNotFoundError
 	}
 	response := mapper.FindEntityToResponse(output)
-
 	return response, nil
 }
 

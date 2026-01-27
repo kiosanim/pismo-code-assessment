@@ -20,9 +20,9 @@ func TestIsAValidTransactionType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := IsAValidTransactionType(tt.args.transaction.OperationTypeID)
+			got := IsAValidOperationType(tt.args.transaction.OperationTypeID)
 			if got != tt.shouldBeValid {
-				t.Errorf("IsAValidTransactionType() = %v, want %v", got, tt.shouldBeValid)
+				t.Errorf("IsAValidOperationType() = %v, want %v", got, tt.shouldBeValid)
 			}
 		})
 	}
