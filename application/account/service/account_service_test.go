@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"github.com/kiosanim/pismo-code-assessment/application/account/dto"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/errors"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/account"
+	"github.com/kiosanim/pismo-code-assessment/internal/infra/logger/mock"
 	"github.com/stretchr/testify/suite"
 	"testing"
 )
@@ -13,17 +15,19 @@ type AccountServiceTestSuite struct {
 	repository *account.AccountRepositoryMock
 	service    *AccountService
 	ctx        context.Context
+	log        *mock.MockLogger
 }
 
 func (s *AccountServiceTestSuite) SetupTest() {
+	s.log = mock.NewMockLogger()
 	s.repository = account.NewAccountRepositoryMock()
-	s.service = NewAccountService(s.repository)
+	s.service = NewAccountService(s.repository, s.log)
 	s.ctx = context.Background()
 }
 
 func (s *AccountServiceTestSuite) TestNewAccountService() {
 	repo := account.NewAccountRepositoryMock()
-	service := NewAccountService(repo)
+	service := NewAccountService(repo, s.log)
 	if service == nil {
 		s.Fail("account service should not be nil")
 	}
@@ -43,6 +47,10 @@ func (s *AccountServiceTestSuite) TestCreateAccountSuccess() {
 			AccountID:      accountID,
 			DocumentNumber: documentNumber,
 		}, nil)
+
+	s.repository.On("FindByDocumentNumber", s.ctx, documentNumber).Return(
+		nil, errors.AccountNotFoundError,
+	)
 	input := dto.CreateAccountRequest{DocumentNumber: documentNumber}
 	output, err := s.service.Create(s.ctx, input)
 	s.NoError(err, "create account should return no error")
@@ -62,7 +70,7 @@ func (s *AccountServiceTestSuite) TestCreateAccountInvalidParameters() {
 		&account.Account{
 			AccountID:      accountID,
 			DocumentNumber: "",
-		}, account.AccountServiceInvalidParametersError)
+		}, errors.InvalidParametersError)
 	input := dto.CreateAccountRequest{DocumentNumber: ""}
 	_, err := s.service.Create(s.ctx, input)
 	s.Error(err, "create create_account should return no error")
@@ -96,10 +104,10 @@ func (s *AccountServiceTestSuite) TestFindByIDNotFound() {
 		accountID,
 	).Return(
 		nil,
-		account.AccountServiceNotFoundError)
+		errors.AccountNotFoundError)
 	input := dto.FindAccountByIdRequest{AccountID: accountID}
 	output, err := s.service.FindByID(s.ctx, input)
-	s.ErrorIs(err, account.AccountServiceNotFoundError, account.AccountServiceNotFoundError.Error())
+	s.ErrorIs(err, errors.AccountNotFoundError, errors.AccountNotFoundError.Error())
 	s.Nil(output, "find account by ID should return nil because no Account was found")
 }
 
@@ -112,10 +120,10 @@ func (s *AccountServiceTestSuite) TestFindByIDInvalidParameters() {
 			AccountID: accountID,
 		}).Return(
 		nil,
-		account.AccountServiceInvalidParametersError)
+		errors.InvalidParametersError)
 	input := dto.FindAccountByIdRequest{AccountID: accountID}
 	output, err := s.service.FindByID(context.Background(), input)
-	s.ErrorIs(err, account.AccountServiceInvalidParametersError, "find account by ID should return error")
+	s.ErrorIs(err, errors.InvalidParametersError, "find account by ID should return error")
 	s.Nil(output, "find account by ID should return nil because no Account was found")
 }
 

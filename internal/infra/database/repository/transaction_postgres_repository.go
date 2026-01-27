@@ -46,10 +46,10 @@ func (a *TransactionPostgresRepository) Save(ctx context.Context, newTransaction
 	return mapper.ToTransactionEntity(transactionModel), nil
 }
 
-func (a *TransactionPostgresRepository) FindOperationTypeByID(ctx context.Context, OperationTypeID int) (*transaction.OperationType, error) {
-	a.log.Debug(a.componentName+".FindByID", "request", OperationTypeID)
+func (a *TransactionPostgresRepository) FindOperationTypeByID(ctx context.Context, operationTypeID int) (*transaction.OperationType, error) {
+	a.log.Debug(a.componentName+".FindByID", "request", operationTypeID)
 	var selectedOperationType model.OperationTypeModel
-	err := a.connectionData.BunDB.NewSelect().Model(&selectedOperationType).Where("operation_type_id = ?", OperationTypeID).Scan(ctx)
+	err := a.connectionData.BunDB.NewSelect().Model(&selectedOperationType).Where("operation_type_id = ?", operationTypeID).Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, coreerr.TransactionInvalidOperationTypeError
 	} else if err != nil {

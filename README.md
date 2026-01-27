@@ -1,20 +1,41 @@
 # Pismo Code Assessment - Complete Technical Documentation
 
+## Quick Start
+
+To run the complete application with Docker (including database and migrations):
+
+```bash
+make docker-provision
+```
+
+This single command will:
+1. Build and start all Docker containers (API + PostgreSQL)
+2. Run all database migrations automatically
+3. Make the API available at `http://localhost:8080`
+4. Swagger documentation at `http://localhost:8080/swagger/index.html`
+
+**That's it!** The application is now running and ready to use.
+
+---
+
 ## Table of Contents
-1. [Project Overview](#project-overview)
-2. [Architecture](#architecture)
-3. [Technology Stack](#technology-stack)
-4. [Project Structure](#project-structure)
-5. [Domain Layer](#domain-layer)
-6. [Application Layer](#application-layer)
-7. [Infrastructure Layer](#infrastructure-layer)
-8. [Interface Layer](#interface-layer)
-9. [Database Schema](#database-schema)
-10. [API Endpoints](#api-endpoints)
-11. [Business Rules](#business-rules)
-12. [Configuration](#configuration)
-13. [Deployment](#deployment)
-14. [Migration Tool](#migration-tool)
+1. [Quick Start](#quick-start)
+2. [Project Overview](#project-overview)
+3. [Architecture](#architecture)
+4. [Technology Stack](#technology-stack)
+5. [Project Structure](#project-structure)
+6. [Domain Layer](#domain-layer)
+7. [Application Layer](#application-layer)
+8. [Infrastructure Layer](#infrastructure-layer)
+9. [Interface Layer](#interface-layer)
+10. [Database Schema](#database-schema)
+11. [API Endpoints](#api-endpoints)
+12. [Business Rules](#business-rules)
+13. [Configuration](#configuration)
+14. [Deployment](#deployment)
+15. [Migration Tool](#migration-tool)
+16. [Makefile Commands](#makefile-commands)
+17. [Development Workflow](#development-workflow)
 
 ---
 
@@ -977,6 +998,38 @@ make db-migration-status
 
 ---
 
+### Docker-Based Migration Commands
+
+These commands run migrations inside the Docker container, useful when the API is running in Docker.
+
+#### Apply Migrations Inside Docker Container
+```bash
+make db-migration-docker-up
+```
+- Runs all pending database migrations inside the running Docker container
+- Requires the container to be running (`make docker-up`)
+- Executes: `docker exec -it pismo-api /app/app_migration_tool up`
+- Used automatically by `make docker-provision`
+
+#### Rollback Migrations Inside Docker Container
+```bash
+make db-migration-docker-down
+```
+- Rolls back all migrations inside the running Docker container
+- Prompts for confirmation before destroying all tables
+- Executes: `docker exec -it pismo-api /app/app_migration_tool down`
+- **Use with caution**: This will delete all data
+
+#### Check Migration Status Inside Docker Container
+```bash
+make db-migration-docker-status
+```
+- Displays current migration status from inside the Docker container
+- Shows which migrations are applied and pending
+- Executes: `docker exec -it pismo-api /app/app_migration_tool status`
+
+---
+
 ### Testing Commands
 
 #### Run Unit Tests
@@ -995,6 +1048,19 @@ make test-unit
 
 ### Docker Commands
 
+#### Complete Docker Provisioning (Recommended)
+```bash
+make docker-provision
+```
+- **This is the recommended way to start the application**
+- Builds and starts all Docker containers
+- Automatically runs all database migrations inside the container
+- Single command to get everything running
+- Executes:
+  1. `make docker-up`: Starts all containers
+  2. `make db-migration-docker-up`: Runs migrations in container
+- Perfect for first-time setup or quick deployments
+
 #### Build and Start All Services
 ```bash
 make docker-up
@@ -1006,6 +1072,7 @@ make docker-up
   - PostgreSQL database
   - Pismo API application
 - Executes: `docker compose up -d --build`
+- **Note**: This does NOT run migrations automatically. Use `docker-provision` instead or run migrations manually with `make db-migration-docker-up`
 
 #### Destroy All Containers
 ```bash
@@ -1049,6 +1116,20 @@ make swagger
 - Executes: `swag init -g cmd/api/main.go -o docs`
 - Run this after adding or modifying API endpoint annotations
 
+#### Generate Configuration File
+```bash
+make config-file
+```
+- Generates a new `config.yaml` file with default values
+- Creates the file in a temporary folder
+- Useful for creating template configuration files
+- Executes: `go run cmd/config/main.go`
+- The generated config includes default values for:
+  - Server port and address
+  - Database connection settings
+  - Logger configuration
+  - Environment settings
+
 ---
 
 ### Makefile Variables
@@ -1056,15 +1137,28 @@ make swagger
 The Makefile defines the following variables:
 
 ```makefile
-MIGRATION_TOOL = "cmd/migrate/migration_tool.go"  # Path to migration tool
-IMAGE_NAME = pismo-code-assesment                  # Docker image name
+MIGRATION_TOOL = "cmd/migrate/migration_tool.go"      # Path to migration tool source
+MIGRATION_TOOL_BIN = "/app/app_migration_tool"        # Migration tool binary path in container
+IMAGE_NAME = pismo-api                                 # Docker image name
+CONTAINER_NAME = pismo-api                             # Docker container name
 ```
 
 ---
 
 ### Common Development Workflows Using Makefile
 
-#### First Time Setup
+#### Quick Start (Recommended)
+```bash
+# Single command to run everything with Docker
+make docker-provision
+```
+This is the fastest way to get the application running. It handles everything:
+- Builds Docker images
+- Starts all containers (API + PostgreSQL)
+- Runs all database migrations
+- Application ready at http://localhost:8080
+
+#### First Time Setup (Local Development)
 ```bash
 # 1. Install dependencies
 make install
@@ -1079,17 +1173,21 @@ make db-migration-up
 make run
 ```
 
-#### Full Docker Deployment
+#### Full Docker Deployment (Manual Steps)
 ```bash
-# Build and start everything
+# 1. Build and start all containers
 make docker-up
 
-# Verify it's running
+# 2. Run migrations inside container
+make db-migration-docker-up
+
+# 3. Verify it's running
 docker ps
 
-# View logs
+# 4. View logs
 docker compose logs -f pismo-api
 ```
+**Note**: Using `make docker-provision` combines steps 1 and 2 automatically.
 
 #### Testing Workflow
 ```bash

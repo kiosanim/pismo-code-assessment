@@ -5,9 +5,6 @@ MIGRATION_TOOL_BIN = "/app/app_migration_tool"
 IMAGE_NAME = pismo-api
 CONTAINER_NAME = pismo-api
 
-#create.config:
-#	@echo "TODO: CRIAR CONFIG FILE" <-------------------- FALTA DESENVOLVER
-
 run:
 	@echo "Running API Server"
 	go run cmd/api/main.go
@@ -66,3 +63,7 @@ docker-down-db:
 swagger:
 	@echo "Generating Swagger Docs"
 	swag init -g cmd/api/main.go -o docs
+
+config-file:
+	@echo "Generating a new config.yaml file with default values in a temporary folder"
+	go run cmd/config/main.go

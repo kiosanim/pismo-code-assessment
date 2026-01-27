@@ -1,7 +1,9 @@
 app:
   env: "development"
   address: ":8080"
-  loglevel: "info"
+  loglevel: "debug"
 
 database:
-  dsn: "postgres://user:password@localhost:5432/db?sslmode=disable"
+  dsn: "postgres://pismo:123456@postgres:5432/pismo_db?sslmode=disable"
+#  dsn: "postgres://pismo:123456@localhost:5432/pismo_db?sslmode=disable"
+

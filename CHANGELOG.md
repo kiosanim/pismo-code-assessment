@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [0.5.0] 2026-01-27
 - Add Docker
 - Fix business rules
+- New Makefile targets
+- Documentation
 
 ## [0.4.0] 2026-01-26
 - Adding Swagger
