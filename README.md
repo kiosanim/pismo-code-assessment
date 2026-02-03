@@ -1,5 +1,9 @@
 # Pismo Code Assessment - Complete Technical Documentation
 
+**Author:** Fábio Sartori
+
+---
+
 ## Quick Start
 
 To run the complete application with Docker (including database and migrations):
