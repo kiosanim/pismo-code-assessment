@@ -113,11 +113,11 @@ func TestEntityToResponse(t *testing.T) {
 				Amount:          -123.45, // Negative in storage
 				EventDate:       now,
 			},
-			expected: &dto.CreateTransactionResponse{
+			expected: &dto.CreateTransactionResponse{Transaction: dto.TransactionDTO{
 				TransactionID:   100,
 				AccountID:       1,
 				OperationTypeID: transaction.Purchase,
-				Amount:          -123.45,
+				Amount:          -123.45},
 			},
 		},
 		{
@@ -129,12 +129,12 @@ func TestEntityToResponse(t *testing.T) {
 				Amount:          500.00, // Positive in storage
 				EventDate:       now,
 			},
-			expected: &dto.CreateTransactionResponse{
+			expected: &dto.CreateTransactionResponse{Transaction: dto.TransactionDTO{
 				TransactionID:   200,
 				AccountID:       2,
 				OperationTypeID: transaction.Payment,
 				Amount:          500.00,
-			},
+			}},
 		},
 		{
 			name: "should map entity with zero transaction ID",
@@ -145,11 +145,11 @@ func TestEntityToResponse(t *testing.T) {
 				Amount:          -50.00,
 				EventDate:       now,
 			},
-			expected: &dto.CreateTransactionResponse{
+			expected: &dto.CreateTransactionResponse{Transaction: dto.TransactionDTO{
 				TransactionID:   0,
 				AccountID:       5,
 				OperationTypeID: transaction.Withdrawal,
-				Amount:          -50.00,
+				Amount:          -50.00},
 			},
 		},
 		{
@@ -161,11 +161,11 @@ func TestEntityToResponse(t *testing.T) {
 				Amount:          999999.99,
 				EventDate:       now,
 			},
-			expected: &dto.CreateTransactionResponse{
+			expected: &dto.CreateTransactionResponse{Transaction: dto.TransactionDTO{
 				TransactionID:   9999999,
 				AccountID:       9999,
 				OperationTypeID: transaction.Payment,
-				Amount:          999999.99,
+				Amount:          999999.99},
 			},
 		},
 	}
@@ -175,10 +175,10 @@ func TestEntityToResponse(t *testing.T) {
 			result := EntityToResponse(tt.input)
 
 			assert.NotNil(t, result, "result should not be nil")
-			assert.Equal(t, tt.expected.TransactionID, result.TransactionID, "transaction ID should match")
-			assert.Equal(t, tt.expected.AccountID, result.AccountID, "account ID should match")
-			assert.Equal(t, tt.expected.OperationTypeID, result.OperationTypeID, "operation type ID should match")
-			assert.Equal(t, tt.expected.Amount, result.Amount, "amount should match")
+			assert.Equal(t, tt.expected.Transaction.TransactionID, result.Transaction.TransactionID, "transaction ID should match")
+			assert.Equal(t, tt.expected.Transaction.AccountID, result.Transaction.AccountID, "account ID should match")
+			assert.Equal(t, tt.expected.Transaction.OperationTypeID, result.Transaction.OperationTypeID, "operation type ID should match")
+			assert.Equal(t, tt.expected.Transaction.Amount, result.Transaction.Amount, "amount should match")
 		})
 	}
 }
@@ -206,8 +206,8 @@ func TestEntityToResponse_WithLargeAccountID(t *testing.T) {
 	result := EntityToResponse(input)
 
 	assert.NotNil(t, result, "result should not be nil")
-	assert.Equal(t, int64(9223372036854775807), result.TransactionID, "should handle large transaction IDs")
-	assert.Equal(t, int64(9223372036854775807), result.AccountID, "should handle large account IDs")
+	assert.Equal(t, int64(9223372036854775807), result.Transaction.TransactionID, "should handle large transaction IDs")
+	assert.Equal(t, int64(9223372036854775807), result.Transaction.AccountID, "should handle large account IDs")
 }
 
 func TestCreateDTOToEntity_AllOperationTypes(t *testing.T) {
@@ -278,7 +278,7 @@ func TestEntityToResponse_NegativeAndPositiveAmounts(t *testing.T) {
 			result := EntityToResponse(input)
 
 			assert.NotNil(t, result, "result should not be nil")
-			assert.Equal(t, tt.expectedValue, result.Amount, "amount should be preserved")
+			assert.Equal(t, tt.expectedValue, result.Transaction.Amount, "amount should be preserved")
 		})
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/kiosanim/pismo-code-assessment/internal/core/logger"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/transaction"
 	"net/http"
+	"strconv"
 )
 
 type TransactionHandler struct {
@@ -43,4 +44,32 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, res)
+}
+
+// GetTransactionID godoc
+// @Summary      Get transaction by ID
+// @Description  Returns a transaction by ID
+// @Tags         Transactions
+// @Param        id   path	int  true  "Transaction ID"
+// @Produce      json
+// @Success      200  {object}  dto.FindTransactionByIdResponse
+// @Failure      404  {object}  map[string]string
+// @Router       /transactions/{id} [get]
+func (h *TransactionHandler) GetTransactionByID(c *gin.Context) {
+	transactionId := c.Param("transaction_id")
+	transactionId64, err := strconv.ParseInt(transactionId, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errors.InvalidParametersError.Error()})
+		return
+	}
+	res, err := h.service.FindByID(c.Request.Context(), dto.FindTransactionByIdRequest{TransactionID: transactionId64})
+	if res == nil && err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	} else if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, res)
 }

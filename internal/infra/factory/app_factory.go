@@ -5,24 +5,29 @@ import (
 	trnSvc "github.com/kiosanim/pismo-code-assessment/application/transaction/service"
 	"github.com/kiosanim/pismo-code-assessment/interfaces/http/handler"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/adapter"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/cache"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/config"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/lock"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/logger"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/account"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/transaction"
 	"github.com/kiosanim/pismo-code-assessment/internal/infra/database/repository"
+	infralock "github.com/kiosanim/pismo-code-assessment/internal/infra/lock"
 )
 
 type AppFactory struct {
-	configuration  *config.Configuration
-	connectionData *adapter.ConnectionData
-	log            logger.Logger
+	configuration       *config.Configuration
+	connectionData      *adapter.DatabaseConnectionData
+	cacheConnectionData *adapter.CacheConnectionData
+	log                 logger.Logger
 }
 
-func NewAppFactory(configuration *config.Configuration, connectionData *adapter.ConnectionData, log logger.Logger) *AppFactory {
+func NewAppFactory(configuration *config.Configuration, connectionData *adapter.DatabaseConnectionData, cacheConnectionData *adapter.CacheConnectionData, log logger.Logger) *AppFactory {
 	return &AppFactory{
-		configuration:  configuration,
-		connectionData: connectionData,
-		log:            log,
+		configuration:       configuration,
+		connectionData:      connectionData,
+		cacheConnectionData: cacheConnectionData,
+		log:                 log,
 	}
 }
 
@@ -40,6 +45,7 @@ func (a *AppFactory) AccountRepository() account.AccountRepository {
 func (a *AppFactory) AccountService() *accSvc.AccountService {
 	return accSvc.NewAccountService(
 		a.AccountRepository(),
+		a.CacheRepository(),
 		a.log,
 	)
 }
@@ -55,6 +61,7 @@ func (a *AppFactory) TransactionService() *trnSvc.TransactionService {
 	return trnSvc.NewTransactionService(
 		a.AccountRepository(),
 		a.TransactionRepository(),
+		a.CacheRepository(),
 		a.log,
 	)
 }
@@ -71,4 +78,15 @@ func (a *AppFactory) TransactionHandler() *handler.TransactionHandler {
 		a.TransactionService(),
 		a.log,
 	)
+}
+
+func (a *AppFactory) CacheRepository() cache.CacheRepository {
+	return repository.NewRedisRepository(
+		a.cacheConnectionData,
+		a.log,
+	)
+}
+
+func (a *AppFactory) DistributedLockManager() lock.DistributedLockManager {
+	return infralock.NewRedisDistributedLockManager(a.cacheConnectionData, a.log)
 }

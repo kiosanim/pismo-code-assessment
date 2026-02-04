@@ -14,10 +14,21 @@ func CreateDTOToEntity(req dto.CreateTransactionRequest) *transaction.Transactio
 }
 
 func EntityToResponse(entity *transaction.Transaction) *dto.CreateTransactionResponse {
-	return &dto.CreateTransactionResponse{
+	transactionDTO := &dto.TransactionDTO{
 		TransactionID:   entity.TransactionID,
 		AccountID:       entity.AccountID,
 		OperationTypeID: entity.OperationTypeID,
 		Amount:          entity.Amount,
 	}
+	return &dto.CreateTransactionResponse{Transaction: *transactionDTO}
+}
+
+func EntityByIdToResponseById(entity *transaction.Transaction) *dto.FindTransactionByIdResponse {
+	transactionDTO := &dto.TransactionDTO{
+		TransactionID:   entity.TransactionID,
+		AccountID:       entity.AccountID,
+		OperationTypeID: entity.OperationTypeID,
+		Amount:          entity.Amount,
+	}
+	return &dto.FindTransactionByIdResponse{Transaction: *transactionDTO}
 }

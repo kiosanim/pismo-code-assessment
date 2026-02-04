@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/kiosanim/pismo-code-assessment/interfaces/http/router"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/adapter"
@@ -27,9 +28,18 @@ func setupConfig() *corecfg.Configuration {
 	return cfg
 }
 
-func setupDatabase(ctx context.Context, cfg *corecfg.Configuration) *adapter.ConnectionData {
-	var conn adapter.Connection = connection.NewPostgresConnection(cfg)
-	dbConnectionData, err := conn.Connect(ctx)
+func setupCache(ctx context.Context, cfg *corecfg.Configuration) *adapter.CacheConnectionData {
+	var conn adapter.CacheConnection = connection.NewRedisConnection(cfg)
+	cacheConnectionData, err := conn.Connect(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return cacheConnectionData
+}
+
+func setupDatabase(cfg *corecfg.Configuration) *adapter.DatabaseConnectionData {
+	var conn adapter.DatabaseConnection = connection.NewPostgresConnection(cfg)
+	dbConnectionData, err := conn.Connect()
 	if err != nil {
 		panic(err)
 	}
@@ -53,8 +63,9 @@ func main() {
 	ctx := context.Background()
 	cfg := setupConfig()
 	sLogger := logger.NewSlogLogger(ctx, cfg)
-	dbConnectionData := setupDatabase(ctx, cfg)
-	appFactory := factory.NewAppFactory(cfg, dbConnectionData, sLogger)
+	dbConnectionData := setupDatabase(cfg)
+	cacheConnectionData := setupCache(ctx, cfg)
+	appFactory := factory.NewAppFactory(cfg, dbConnectionData, cacheConnectionData, sLogger)
 	if appFactory == nil {
 		sLogger.Error("App Factory not initialized")
 		os.Exit(1)
@@ -67,8 +78,7 @@ func main() {
 	go func() {
 		sLogger.Info(fmt.Sprintf("Server Listening on: %s", server.Addr))
 		err := server.ListenAndServe()
-		if err != nil &&
-			err != http.ErrServerClosed {
+		if err != nil && errors.Is(err, http.ErrServerClosed) {
 			sLogger.Error(fmt.Sprintf("ListenAndServe Error: %v", err))
 			os.Exit(2)
 		}
@@ -79,6 +89,10 @@ func main() {
 	sLogger.Warn("Shutdown Server...")
 	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	sLogger.Info("Closing Database Connection...")
+	defer dbConnectionData.Db.Close()
+	sLogger.Info("Closing Database Connection...")
+	defer cacheConnectionData.Rdb.Close()
 	err := server.Shutdown(ctxWithTimeout)
 	if err != nil {
 		sLogger.Error(fmt.Sprintf("Server Shutdown Error: %v", err))

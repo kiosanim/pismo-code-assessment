@@ -13,12 +13,12 @@ import (
 )
 
 type AccountPostgresRepository struct {
-	connectionData *adapter.ConnectionData
+	connectionData *adapter.DatabaseConnectionData
 	componentName  string
 	log            logger.Logger
 }
 
-func NewAccountPostgresRepository(connectionData *adapter.ConnectionData, log logger.Logger) *AccountPostgresRepository {
+func NewAccountPostgresRepository(connectionData *adapter.DatabaseConnectionData, log logger.Logger) *AccountPostgresRepository {
 	repository := &AccountPostgresRepository{
 		connectionData: connectionData,
 		log:            log,
@@ -30,10 +30,22 @@ func NewAccountPostgresRepository(connectionData *adapter.ConnectionData, log lo
 func (a *AccountPostgresRepository) FindByID(ctx context.Context, accountID int64) (*account.Account, error) {
 	a.log.Debug(a.componentName+".FindByID", "request", accountID)
 	var selectedAccount model.AccountModel
-	err := a.connectionData.BunDB.NewSelect().Model(&selectedAccount).Where("account_id = ?", accountID).Scan(ctx)
+	stmt, err := a.connectionData.Db.PrepareContext(ctx, "select account_id, accounts.document_number from accounts where account_id = $1")
+	if err != nil {
+		return nil, coreerr.DatabasePrepareStatementError
+	}
+	defer stmt.Close()
 	acc, err, done := a.validateAccountError(err)
 	if done {
 		return acc, err
+	}
+	err = stmt.QueryRowContext(ctx, accountID).Scan(&selectedAccount.AccountID, &selectedAccount.DocumentNumber)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, coreerr.AccountNotFoundError
+		}
+		a.log.Error(a.componentName+".FindByID", "error", err)
+		return nil, coreerr.DatabaseQueryError
 	}
 	return mapper.ToAccountEntity(&selectedAccount), nil
 }
@@ -50,11 +62,25 @@ func (a *AccountPostgresRepository) validateAccountError(err error) (*account.Ac
 func (a *AccountPostgresRepository) FindByDocumentNumber(ctx context.Context, documentNumber string) (*account.Account, error) {
 	a.log.Debug(a.componentName+".FindByDocumentNumber", "request", documentNumber)
 	var selectedAccount model.AccountModel
-	err := a.connectionData.BunDB.NewSelect().Model(&selectedAccount).Where("document_number = ?", documentNumber).Scan(ctx)
+	stmt, err := a.connectionData.Db.PrepareContext(ctx, "select account_id, accounts.document_number from accounts where document_number = $1")
+	if err != nil {
+		return nil, coreerr.DatabasePrepareStatementError
+	}
+	defer stmt.Close()
 	acc, err, done := a.validateAccountError(err)
 	if done {
 		return acc, err
 	}
+
+	err = stmt.QueryRowContext(ctx, documentNumber).Scan(&selectedAccount.AccountID, &selectedAccount.DocumentNumber)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, coreerr.AccountNotFoundError
+		}
+		a.log.Error(a.componentName+".FindByDocumentNumberQueryRowContext", "err", err)
+		return nil, coreerr.DatabaseQueryError
+	}
+
 	return mapper.ToAccountEntity(&selectedAccount), nil
 }
 
@@ -64,15 +90,29 @@ func (a *AccountPostgresRepository) Save(ctx context.Context, newAccount *accoun
 	if accountModel == nil {
 		return nil, coreerr.InvalidParametersError
 	}
-	tx, err := a.connectionData.BunDB.BeginTx(ctx, &sql.TxOptions{})
+
+	tx, err := a.connectionData.Db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, coreerr.DatabaseCreateTransactionError
 	}
 	defer tx.Rollback()
-	_, err = tx.NewInsert().Model(accountModel).Returning("*").Exec(ctx)
+	stmt, err := tx.PrepareContext(ctx, "insert into accounts (account_id, document_number) values ($1, $2)")
 	if err != nil {
-		return nil, err
+		return nil, coreerr.DatabasePrepareStatementError
 	}
-	tx.Commit()
+	defer stmt.Close()
+	err = stmt.QueryRowContext(
+		ctx,
+		accountModel.AccountID,
+		accountModel.DocumentNumber).Scan(
+		&accountModel.AccountID,
+		&accountModel.DocumentNumber)
+	if err != nil {
+		return nil, coreerr.DatabaseInsertionError
+	}
+	err = tx.Commit()
+	if err != nil {
+		return nil, coreerr.DatabaseFailToCommitError
+	}
 	return mapper.ToAccountEntity(accountModel), nil
 }

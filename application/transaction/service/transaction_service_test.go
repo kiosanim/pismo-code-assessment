@@ -3,7 +3,11 @@ package service
 import (
 	"context"
 	goerrors "errors"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/cache"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/logger"
 	loggermock "github.com/kiosanim/pismo-code-assessment/internal/infra/logger/mock"
+	"go.uber.org/mock/gomock"
+	"reflect"
 	"testing"
 
 	"github.com/kiosanim/pismo-code-assessment/application/transaction/dto"
@@ -18,6 +22,7 @@ type TransactionServiceTestSuite struct {
 	suite.Suite
 	accountRepository     *account.AccountRepositoryMock
 	transactionRepository *transaction.TransactionRepositoryMock
+	cache                 cache.CacheRepository
 	service               *TransactionService
 	ctx                   context.Context
 }
@@ -25,15 +30,18 @@ type TransactionServiceTestSuite struct {
 func (s *TransactionServiceTestSuite) SetupTest() {
 	log := loggermock.NewMockLogger()
 	s.accountRepository = account.NewAccountRepositoryMock()
+	control := gomock.NewController(s.T())
+	defer control.Finish()
+	s.cache = cache.NewCacheRepositoryMock(control)
 	s.transactionRepository = transaction.NewTransactionRepositoryMock()
-	s.service = NewTransactionService(s.accountRepository, s.transactionRepository, log)
+	s.service = NewTransactionService(s.accountRepository, s.transactionRepository, s.cache, log)
 	s.ctx = context.Background()
 }
 
 func (s *TransactionServiceTestSuite) TestNewTransactionService() {
 	accRepo := account.NewAccountRepositoryMock()
 	txRepo := transaction.NewTransactionRepositoryMock()
-	service := NewTransactionService(accRepo, txRepo, nil)
+	service := NewTransactionService(accRepo, txRepo, s.cache, nil)
 	s.NotNil(service, "transaction service should not be nil")
 }
 
@@ -80,11 +88,11 @@ func (s *TransactionServiceTestSuite) TestCreateTransactionSuccess_Purchase() {
 
 	s.NoError(err, "create transaction should return no error")
 	s.NotNil(output, "output should not be nil")
-	s.Equal(transactionID, output.TransactionID, "transaction ID should match")
-	s.Equal(accountID, output.AccountID, "account ID should match")
-	s.Equal(operationTypeID, output.OperationTypeID, "operation type ID should match")
+	s.Equal(transactionID, output.Transaction.TransactionID, "transaction ID should match")
+	s.Equal(accountID, output.Transaction.AccountID, "account ID should match")
+	s.Equal(operationTypeID, output.Transaction.OperationTypeID, "operation type ID should match")
 	// Amount in response should remain positive for display
-	s.Equal(amount, output.Amount, "amount should be positive in response")
+	s.Equal(amount, output.Transaction.Amount, "amount should be positive in response")
 }
 
 func (s *TransactionServiceTestSuite) TestCreateTransactionSuccess_Payment() {
@@ -130,7 +138,7 @@ func (s *TransactionServiceTestSuite) TestCreateTransactionSuccess_Payment() {
 
 	s.NoError(err, "create transaction should return no error")
 	s.NotNil(output, "output should not be nil")
-	s.Equal(amount, output.Amount, "amount should remain positive for payment")
+	s.Equal(amount, output.Transaction.Amount, "amount should remain positive for payment")
 }
 
 func (s *TransactionServiceTestSuite) TestCreateTransactionError_InvalidAccountID() {
@@ -372,4 +380,118 @@ func (s *TransactionServiceTestSuite) TestReverseAmountSign_Payment() {
 
 func TestTransactionServiceTestSuite(t *testing.T) {
 	suite.Run(t, new(TransactionServiceTestSuite))
+}
+
+func TestTransactionService_Create(t1 *testing.T) {
+	type fields struct {
+		accountRepository     account.AccountRepository
+		transactionRepository transaction.TransactionRepository
+		componentName         string
+		log                   logger.Logger
+	}
+	type args struct {
+		ctx     context.Context
+		request dto.CreateTransactionRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *dto.CreateTransactionResponse
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t1.Run(tt.name, func(t1 *testing.T) {
+			t := &TransactionService{
+				accountRepository:     tt.fields.accountRepository,
+				transactionRepository: tt.fields.transactionRepository,
+				componentName:         tt.fields.componentName,
+				log:                   tt.fields.log,
+			}
+			got, err := t.Create(tt.args.ctx, tt.args.request)
+			if (err != nil) != tt.wantErr {
+				t1.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t1.Errorf("Create() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTransactionService_FindByID(t1 *testing.T) {
+	type fields struct {
+		accountRepository     account.AccountRepository
+		transactionRepository transaction.TransactionRepository
+		componentName         string
+		log                   logger.Logger
+	}
+	type args struct {
+		ctx     context.Context
+		request dto.FindTransactionByIdRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *dto.FindTransactionByIdResponse
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t1.Run(tt.name, func(t1 *testing.T) {
+			t := &TransactionService{
+				accountRepository:     tt.fields.accountRepository,
+				transactionRepository: tt.fields.transactionRepository,
+				componentName:         tt.fields.componentName,
+				log:                   tt.fields.log,
+			}
+			got, err := t.FindByID(tt.args.ctx, tt.args.request)
+			if (err != nil) != tt.wantErr {
+				t1.Errorf("FindByID() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t1.Errorf("FindByID() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTransactionService_isAValidOperationType(t1 *testing.T) {
+	type fields struct {
+		accountRepository     account.AccountRepository
+		transactionRepository transaction.TransactionRepository
+		componentName         string
+		log                   logger.Logger
+	}
+	type args struct {
+		ctx             context.Context
+		operationTypeID int
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t1.Run(tt.name, func(t1 *testing.T) {
+			t := &TransactionService{
+				accountRepository:     tt.fields.accountRepository,
+				transactionRepository: tt.fields.transactionRepository,
+				componentName:         tt.fields.componentName,
+				log:                   tt.fields.log,
+			}
+			if got := t.isAValidOperationType(tt.args.ctx, tt.args.operationTypeID); got != tt.want {
+				t1.Errorf("isAValidOperationType() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

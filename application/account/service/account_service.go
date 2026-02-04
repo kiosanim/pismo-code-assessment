@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/kiosanim/pismo-code-assessment/application/account/dto"
 	"github.com/kiosanim/pismo-code-assessment/application/account/mapper"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/cache"
 	coreerr "github.com/kiosanim/pismo-code-assessment/internal/core/errors"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/logger"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/account"
@@ -12,12 +13,13 @@ import (
 
 type AccountService struct {
 	accountRepository account.AccountRepository
+	cache             cache.CacheRepository
 	componentName     string
 	log               logger.Logger
 }
 
-func NewAccountService(repository account.AccountRepository, log logger.Logger) *AccountService {
-	accountService := AccountService{accountRepository: repository, log: log}
+func NewAccountService(repository account.AccountRepository, cache cache.CacheRepository, log logger.Logger) *AccountService {
+	accountService := AccountService{accountRepository: repository, cache: cache, log: log}
 	accountService.componentName = logger.ComponentNameFromStruct(accountService)
 	return &accountService
 }

@@ -3,16 +3,19 @@ package service
 import (
 	"context"
 	"github.com/kiosanim/pismo-code-assessment/application/account/dto"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/cache"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/errors"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/account"
 	"github.com/kiosanim/pismo-code-assessment/internal/infra/logger/mock"
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
 	"testing"
 )
 
 type AccountServiceTestSuite struct {
 	suite.Suite
 	repository *account.AccountRepositoryMock
+	cache      cache.CacheRepository
 	service    *AccountService
 	ctx        context.Context
 	log        *mock.MockLogger
@@ -21,13 +24,16 @@ type AccountServiceTestSuite struct {
 func (s *AccountServiceTestSuite) SetupTest() {
 	s.log = mock.NewMockLogger()
 	s.repository = account.NewAccountRepositoryMock()
-	s.service = NewAccountService(s.repository, s.log)
+	control := gomock.NewController(s.T())
+	defer control.Finish()
+	s.cache = cache.NewCacheRepositoryMock(control)
+	s.service = NewAccountService(s.repository, s.cache, s.log)
 	s.ctx = context.Background()
 }
 
 func (s *AccountServiceTestSuite) TestNewAccountService() {
 	repo := account.NewAccountRepositoryMock()
-	service := NewAccountService(repo, s.log)
+	service := NewAccountService(repo, s.cache, s.log)
 	if service == nil {
 		s.Fail("account service should not be nil")
 	}

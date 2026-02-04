@@ -4,29 +4,29 @@ import (
 	"context"
 	"github.com/kiosanim/pismo-code-assessment/application/transaction/dto"
 	"github.com/kiosanim/pismo-code-assessment/application/transaction/mapper"
-	"github.com/kiosanim/pismo-code-assessment/internal/core/errors"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/cache"
+	coreerr "github.com/kiosanim/pismo-code-assessment/internal/core/errors"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/logger"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/account"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/transaction"
 	"time"
 )
 
-const (
-	changeValueMultiplier = -1.0
-	purchaseOperationCode = 4
-)
+const purchaseOperationCode = 4
 
 type TransactionService struct {
 	accountRepository     account.AccountRepository
+	cache                 cache.CacheRepository
 	transactionRepository transaction.TransactionRepository
 	componentName         string
 	log                   logger.Logger
 }
 
-func NewTransactionService(accountRepository account.AccountRepository, transactionRepository transaction.TransactionRepository, log logger.Logger) *TransactionService {
+func NewTransactionService(accountRepository account.AccountRepository, transactionRepository transaction.TransactionRepository, cache cache.CacheRepository, log logger.Logger) *TransactionService {
 	transactionService := TransactionService{
 		accountRepository:     accountRepository,
 		transactionRepository: transactionRepository,
+		cache:                 cache,
 		log:                   log,
 	}
 	transactionService.componentName = logger.ComponentNameFromStruct(transactionService)
@@ -69,15 +69,31 @@ func (t *TransactionService) isAValidOperationType(ctx context.Context, operatio
 	return true
 }
 
+func (t *TransactionService) FindByID(ctx context.Context, request dto.FindTransactionByIdRequest) (*dto.FindTransactionByIdResponse, error) {
+	t.log.Debug(t.componentName+".FindByID", "request", request)
+	if request.TransactionID <= 0 {
+		return nil, coreerr.InvalidParametersError
+	}
+	output, err := t.transactionRepository.FindTransactionByID(ctx, request.TransactionID)
+	if err != nil {
+		return nil, err
+	}
+	if output == nil {
+		return nil, coreerr.AccountNotFoundError
+	}
+	response := mapper.EntityByIdToResponseById(output)
+	return response, nil
+}
+
 func (t *TransactionService) validateRequestParameters(ctx context.Context, request dto.CreateTransactionRequest) error {
 	if request.AccountID <= 0 {
-		return errors.TransactionInvalidAccountIDError
+		return coreerr.TransactionInvalidAccountIDError
 	}
 	if request.Amount <= 0 {
-		return errors.TransactionInvalidAmountNegativeError
+		return coreerr.TransactionInvalidAmountNegativeError
 	}
 	if !t.isAValidOperationType(ctx, request.OperationTypeID) {
-		return errors.TransactionInvalidOperationTypeError
+		return coreerr.TransactionInvalidOperationTypeError
 	}
 	return nil
 }
@@ -85,7 +101,7 @@ func (t *TransactionService) validateRequestParameters(ctx context.Context, requ
 // reverseAmountSign Change the amount sign for debt operations
 func (t *TransactionService) reverseAmountSign(newTransaction *transaction.Transaction) float64 {
 	if newTransaction.OperationTypeID != purchaseOperationCode {
-		newTransaction.Amount *= changeValueMultiplier
+		newTransaction.Amount = -newTransaction.Amount
 	}
 	return newTransaction.Amount
 }

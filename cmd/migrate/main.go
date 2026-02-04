@@ -73,7 +73,7 @@ func main() {
 		log.Fatal(err)
 	}
 	ctx := context.Background()
-	db, err := sql.Open("postgres", cfg.Database.Dsn)
+	db, err := sql.Open("postgres", cfg.Database.URL)
 
 	if err != nil {
 		log.Fatal(err)
