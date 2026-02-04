@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Add sources already commited
 - Create a redis repository
 - Created a distributed lock
+- Removing Bun ORM from project
 
 ## [0.5.1] 2026-01-27
 - Add Docker
