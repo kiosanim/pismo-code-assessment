@@ -5,7 +5,10 @@ import (
 	"github.com/kiosanim/pismo-code-assessment/application/transaction/dto"
 	"github.com/kiosanim/pismo-code-assessment/application/transaction/mapper"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/cache"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/contextutils"
 	coreerr "github.com/kiosanim/pismo-code-assessment/internal/core/errors"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/factory"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/lock"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/logger"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/account"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/transaction"
@@ -16,38 +19,53 @@ const purchaseOperationCode = 4
 
 type TransactionService struct {
 	accountRepository     account.AccountRepository
-	cache                 cache.CacheRepository
 	transactionRepository transaction.TransactionRepository
+	cache                 cache.CacheRepository
 	componentName         string
+	locker                lock.DistributedLockManager
 	log                   logger.Logger
 }
 
-func NewTransactionService(accountRepository account.AccountRepository, transactionRepository transaction.TransactionRepository, cache cache.CacheRepository, log logger.Logger) *TransactionService {
-	transactionService := TransactionService{
-		accountRepository:     accountRepository,
-		transactionRepository: transactionRepository,
-		cache:                 cache,
-		log:                   log,
+func NewTransactionService(factory factory.Factory) *TransactionService {
+	return &TransactionService{
+		componentName:         "TransactionService",
+		accountRepository:     factory.AccountRepository(),
+		transactionRepository: factory.TransactionRepository(),
+		cache:                 factory.CacheRepository(),
+		locker:                factory.DistributedLockManager(),
+		log:                   factory.Log(),
 	}
-	transactionService.componentName = logger.ComponentNameFromStruct(transactionService)
-	return &transactionService
 }
 
 func (t *TransactionService) Create(ctx context.Context, request dto.CreateTransactionRequest) (*dto.CreateTransactionResponse, error) {
-	t.log.Debug(t.componentName+".Create", "request", request)
+	traceID := contextutils.GetTraceID(ctx)
+	t.log.Debug(t.componentName+".Create", "request", request, "x_trace_id", traceID)
 	err := t.validateRequestParameters(ctx, request)
 	if err != nil {
+		t.log.Warn(t.componentName+".Create", "error", err, "x_trace_id", traceID)
 		return nil, err
 	}
 	_, err = t.accountRepository.FindByID(ctx, request.AccountID)
 	if err != nil {
+		t.log.Warn(t.componentName+".Create", "error", err, "x_trace_id", traceID)
 		return nil, err
 	}
 	newTransaction := mapper.CreateDTOToEntity(request)
 	newTransaction.Amount = t.reverseAmountSign(newTransaction) //Change the amount sign for debt operations
 	newTransaction.EventDate = time.Now()
+	lck, err := t.locker.WaitToLockUsingDefaultTimeConfiguration(ctx, lock.TransactionCreationLockKey)
+	if err != nil {
+		t.log.Warn(t.componentName+".Create", "error", err, "x_trace_id", traceID)
+		return nil, err
+	}
 	response, err := t.transactionRepository.Save(ctx, newTransaction)
 	if err != nil {
+		t.log.Warn(t.componentName+".Create", "error", err, "x_trace_id", traceID)
+		return nil, err
+	}
+	err = t.locker.Unlock(ctx, lck)
+	if err != nil {
+		t.log.Warn(t.componentName+".Create", "error", err, "x_trace_id", traceID)
 		return nil, err
 	}
 	response.Amount = t.reverseAmountSign(newTransaction) //Returning value sign only for user presentation
@@ -55,7 +73,6 @@ func (t *TransactionService) Create(ctx context.Context, request dto.CreateTrans
 }
 
 func (t *TransactionService) isAValidOperationType(ctx context.Context, operationTypeID int) bool {
-	t.log.Debug(t.componentName+".FindByID", "request", operationTypeID)
 	if operationTypeID <= 0 {
 		return false
 	}
@@ -70,16 +87,22 @@ func (t *TransactionService) isAValidOperationType(ctx context.Context, operatio
 }
 
 func (t *TransactionService) FindByID(ctx context.Context, request dto.FindTransactionByIdRequest) (*dto.FindTransactionByIdResponse, error) {
-	t.log.Debug(t.componentName+".FindByID", "request", request)
+	traceID := contextutils.GetTraceID(ctx)
+	t.log.Debug(t.componentName+".FindByID", "request", request, "x_trace_id", traceID)
 	if request.TransactionID <= 0 {
-		return nil, coreerr.InvalidParametersError
+		err := coreerr.InvalidParametersError
+		t.log.Warn(t.componentName+".FindByID", "error", err, "x_trace_id", traceID)
+		return nil, err
 	}
 	output, err := t.transactionRepository.FindTransactionByID(ctx, request.TransactionID)
 	if err != nil {
+		t.log.Warn(t.componentName+".FindByID", "error", err, "x_trace_id", traceID)
 		return nil, err
 	}
 	if output == nil {
-		return nil, coreerr.AccountNotFoundError
+		err := coreerr.AccountNotFoundError
+		t.log.Warn(t.componentName+".FindByID", "error", err, "x_trace_id", traceID)
+		return nil, err
 	}
 	response := mapper.EntityByIdToResponseById(output)
 	return response, nil

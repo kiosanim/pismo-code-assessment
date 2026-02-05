@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/adapter"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/contextutils"
 	coreerr "github.com/kiosanim/pismo-code-assessment/internal/core/errors"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/logger"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/transaction"
@@ -27,58 +28,68 @@ func NewTransactionPostgresRepository(connectionData *adapter.DatabaseConnection
 }
 
 func (t *TransactionPostgresRepository) Save(ctx context.Context, newTransaction *transaction.Transaction) (*transaction.Transaction, error) {
-	t.log.Debug(t.componentName+".FindByID", "request", newTransaction)
+	traceID := contextutils.GetTraceID(ctx)
+	t.log.Debug(t.componentName+".Save", "newTransaction", newTransaction, "x_trace_id", traceID)
 	transactionModel := mapper.ToTransactionModel(newTransaction)
 	if transactionModel == nil {
-		return nil, coreerr.InvalidParametersError
+		err := coreerr.InvalidParametersError
+		t.log.Warn(t.componentName+".Save", "error", err, "x_trace_id", traceID)
+		return nil, err
 	}
-
 	tx, err := t.connectionData.Db.BeginTx(ctx, nil)
 	if err != nil {
+		t.log.Warn(t.componentName+".Save", "error", err, "x_trace_id", traceID)
 		return nil, coreerr.DatabaseCreateTransactionError
 	}
 	defer tx.Rollback()
-	stmt, err := tx.PrepareContext(ctx, "insert into transactions(account_id, operation_type, amount, event_date) values(?, ?, ?, ?)")
+	stmt, err := tx.PrepareContext(ctx, "INSERT INTO transactions(account_id, operation_type_id, amount, event_date) VALUES($1, $2, $3, $4) RETURNING transaction_id, account_id, operation_type_id, amount, event_date")
 	if err != nil {
+		t.log.Warn(t.componentName+".Save", "error", err, "x_trace_id", traceID)
 		return nil, coreerr.DatabasePrepareStatementError
 	}
 	defer stmt.Close()
 	err = stmt.QueryRowContext(
 		ctx,
 		transactionModel.AccountID,
-		transactionModel.OperationType,
+		transactionModel.OperationTypeID,
 		transactionModel.Amount,
 		transactionModel.EventDate).Scan(
-		&transactionModel.AccountID,
 		&transactionModel.TransactionID,
+		&transactionModel.AccountID,
 		&transactionModel.OperationTypeID,
 		&transactionModel.Amount,
 		&transactionModel.EventDate)
 	if err != nil {
+		t.log.Warn(t.componentName+".Save", "error", err, "x_trace_id", traceID)
 		return nil, coreerr.DatabaseInsertionError
 	}
 	err = tx.Commit()
 	if err != nil {
+		t.log.Warn(t.componentName+".Save", "error", err, "x_trace_id", traceID)
 		return nil, coreerr.DatabaseFailToCommitError
 	}
 	return mapper.ToTransactionEntity(transactionModel), nil
 }
 
 func (t *TransactionPostgresRepository) FindOperationTypeByID(ctx context.Context, operationTypeID int) (*transaction.OperationType, error) {
-	t.log.Debug(t.componentName+".FindByID", "request", operationTypeID)
+	traceID := contextutils.GetTraceID(ctx)
+	t.log.Debug(t.componentName+".FindOperationTypeByID", "operationTypeID", operationTypeID, "x_trace_id", traceID)
 	var selectedOperationType model.OperationTypeModel
 	tx, err := t.connectionData.Db.BeginTx(ctx, nil)
 	if err != nil {
+		t.log.Warn(t.componentName+".FindOperationTypeByID", "error", err, "x_trace_id", traceID)
 		return nil, coreerr.DatabaseCreateTransactionError
 	}
 	defer tx.Rollback()
-	stmt, err := tx.PrepareContext(ctx, "select operation_type_id, description from operation_types where operation_type_id = ?")
+	stmt, err := tx.PrepareContext(ctx, "SELECT operation_type_id, description FROM operation_types WHERE operation_type_id = $1")
 	if err != nil {
+		t.log.Warn(t.componentName+".FindOperationTypeByID", "error", err, "x_trace_id", traceID)
 		return nil, coreerr.DatabasePrepareStatementError
 	}
 	defer stmt.Close()
 	err = stmt.QueryRowContext(ctx, operationTypeID).Scan(&selectedOperationType.OperationTypeID, &selectedOperationType.Description)
 	if err != nil {
+		t.log.Warn(t.componentName+".FindOperationTypeByID", "error", err, "x_trace_id", traceID)
 		if err == sql.ErrNoRows {
 			return nil, coreerr.OperationTypeNotFoundError
 		}
@@ -89,15 +100,18 @@ func (t *TransactionPostgresRepository) FindOperationTypeByID(ctx context.Contex
 }
 
 func (t *TransactionPostgresRepository) FindTransactionByID(ctx context.Context, transactionID int64) (*transaction.Transaction, error) {
-	t.log.Debug(t.componentName+".FindByID", "request", transactionID)
+	traceID := contextutils.GetTraceID(ctx)
+	t.log.Debug(t.componentName+".FindTransactionByID", "transactionID", transactionID, "x_trace_id", traceID)
 	var transactionModel model.TransactionModel
 	tx, err := t.connectionData.Db.BeginTx(ctx, nil)
 	if err != nil {
+		t.log.Warn(t.componentName+".FindTransactionByID", "error", err, "x_trace_id", traceID)
 		return nil, coreerr.DatabaseCreateTransactionError
 	}
 	defer tx.Rollback()
-	stmt, err := tx.PrepareContext(ctx, "select transaction_id, account_id, operation_type, amount from transactions where transaction_id = ?")
+	stmt, err := tx.PrepareContext(ctx, "SELECT transaction_id, account_id, operation_type_id, amount FROM transactions WHERE transaction_id = $1")
 	if err != nil {
+		t.log.Warn(t.componentName+".FindTransactionByID", "error", err, "x_trace_id", traceID)
 		return nil, coreerr.DatabasePrepareStatementError
 	}
 	defer stmt.Close()
@@ -107,12 +121,12 @@ func (t *TransactionPostgresRepository) FindTransactionByID(ctx context.Context,
 		&transactionModel.TransactionID,
 		&transactionModel.AccountID,
 		&transactionModel.OperationTypeID,
-		transactionModel.Amount)
+		&transactionModel.Amount)
 	if err != nil {
+		t.log.Warn(t.componentName+".FindTransactionByID", "error", err, "x_trace_id", traceID)
 		if err == sql.ErrNoRows {
 			return nil, coreerr.TransactionNotFoundError
 		}
-		t.log.Debug(t.componentName+".FindByID", "error", err)
 		return nil, coreerr.DatabaseQueryError
 	}
 	return mapper.ToTransactionEntity(&transactionModel), nil

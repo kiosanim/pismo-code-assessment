@@ -1,10 +1,9 @@
 package config
 
-import "time"
-
 type DistributedLock struct {
-	TTL           time.Duration `mapstructure:"ttl_ms"`
-	RetryInterval time.Duration `mapstructure:"retry_interval_ms"`
+	TTL           int64 `mapstructure:"ttl_ms"`
+	RetryInterval int64 `mapstructure:"retry_interval_ms"`
+	WaitingTime   int64 `mapstructure:"waiting_time_ms"`
 }
 
 type CacheConfig struct {

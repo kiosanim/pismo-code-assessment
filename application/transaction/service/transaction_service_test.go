@@ -4,8 +4,9 @@ import (
 	"context"
 	goerrors "errors"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/cache"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/factory"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/lock"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/logger"
-	loggermock "github.com/kiosanim/pismo-code-assessment/internal/infra/logger/mock"
 	"go.uber.org/mock/gomock"
 	"reflect"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"github.com/kiosanim/pismo-code-assessment/internal/core/errors"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/account"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/transaction"
+	infralog "github.com/kiosanim/pismo-code-assessment/internal/infra/logger/mock"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -25,23 +27,32 @@ type TransactionServiceTestSuite struct {
 	cache                 cache.CacheRepository
 	service               *TransactionService
 	ctx                   context.Context
+	log                   logger.Logger
+	factory               factory.Factory
+	locker                lock.DistributedLockManager
 }
 
 func (s *TransactionServiceTestSuite) SetupTest() {
-	log := loggermock.NewMockLogger()
-	s.accountRepository = account.NewAccountRepositoryMock()
+	//s.accountRepository = account.NewAccountRepositoryMock()
+	s.log = infralog.NewMockLogger()
 	control := gomock.NewController(s.T())
 	defer control.Finish()
 	s.cache = cache.NewCacheRepositoryMock(control)
 	s.transactionRepository = transaction.NewTransactionRepositoryMock()
-	s.service = NewTransactionService(s.accountRepository, s.transactionRepository, s.cache, log)
+	dlm := lock.NewDistributedLockManagerMock(control)
+	s.locker = dlm
+	ft := factory.NewFactoryMock(control)
+	s.factory = ft
+	ft.EXPECT().TransactionRepository().Return(s.transactionRepository).AnyTimes()
+	ft.EXPECT().CacheRepository().Return(s.cache).AnyTimes()
+	ft.EXPECT().DistributedLockManager().Return(s.locker).AnyTimes()
+	ft.EXPECT().Log().Return(s.log).AnyTimes()
+	s.service = NewTransactionService(s.factory)
 	s.ctx = context.Background()
 }
 
 func (s *TransactionServiceTestSuite) TestNewTransactionService() {
-	accRepo := account.NewAccountRepositoryMock()
-	txRepo := transaction.NewTransactionRepositoryMock()
-	service := NewTransactionService(accRepo, txRepo, s.cache, nil)
+	service := NewTransactionService(s.factory)
 	s.NotNil(service, "transaction service should not be nil")
 }
 

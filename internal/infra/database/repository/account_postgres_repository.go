@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/adapter"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/contextutils"
 	coreerr "github.com/kiosanim/pismo-code-assessment/internal/core/errors"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/logger"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/account"
@@ -21,6 +22,7 @@ type AccountPostgresRepository struct {
 func NewAccountPostgresRepository(connectionData *adapter.DatabaseConnectionData, log logger.Logger) *AccountPostgresRepository {
 	repository := &AccountPostgresRepository{
 		connectionData: connectionData,
+		componentName:  "AccountPostgresRepository",
 		log:            log,
 	}
 	repository.componentName = logger.ComponentNameFromStruct(repository)
@@ -28,10 +30,12 @@ func NewAccountPostgresRepository(connectionData *adapter.DatabaseConnectionData
 }
 
 func (a *AccountPostgresRepository) FindByID(ctx context.Context, accountID int64) (*account.Account, error) {
-	a.log.Debug(a.componentName+".FindByID", "request", accountID)
+	traceID := contextutils.GetTraceID(ctx)
+	a.log.Debug(a.componentName+".FindByID", "accountID", accountID, "x_trace_id", traceID)
 	var selectedAccount model.AccountModel
-	stmt, err := a.connectionData.Db.PrepareContext(ctx, "select account_id, accounts.document_number from accounts where account_id = $1")
+	stmt, err := a.connectionData.Db.PrepareContext(ctx, "SELECT account_id, document_number FROM accounts WHERE account_id = $1")
 	if err != nil {
+		a.log.Warn(a.componentName+".FindByID", "error", err, "x_trace_id", traceID)
 		return nil, coreerr.DatabasePrepareStatementError
 	}
 	defer stmt.Close()
@@ -41,10 +45,10 @@ func (a *AccountPostgresRepository) FindByID(ctx context.Context, accountID int6
 	}
 	err = stmt.QueryRowContext(ctx, accountID).Scan(&selectedAccount.AccountID, &selectedAccount.DocumentNumber)
 	if err != nil {
+		a.log.Warn(a.componentName+".FindByID", "error", err, "x_trace_id", traceID)
 		if err == sql.ErrNoRows {
 			return nil, coreerr.AccountNotFoundError
 		}
-		a.log.Error(a.componentName+".FindByID", "error", err)
 		return nil, coreerr.DatabaseQueryError
 	}
 	return mapper.ToAccountEntity(&selectedAccount), nil
@@ -60,10 +64,12 @@ func (a *AccountPostgresRepository) validateAccountError(err error) (*account.Ac
 }
 
 func (a *AccountPostgresRepository) FindByDocumentNumber(ctx context.Context, documentNumber string) (*account.Account, error) {
-	a.log.Debug(a.componentName+".FindByDocumentNumber", "request", documentNumber)
+	traceID := contextutils.GetTraceID(ctx)
+	a.log.Debug(a.componentName+".FindByDocumentNumber", "documentNumber", documentNumber, "x_trace_id", traceID)
 	var selectedAccount model.AccountModel
-	stmt, err := a.connectionData.Db.PrepareContext(ctx, "select account_id, accounts.document_number from accounts where document_number = $1")
+	stmt, err := a.connectionData.Db.PrepareContext(ctx, "SELECT account_id, document_number FROM accounts WHERE document_number = $1")
 	if err != nil {
+		a.log.Warn(a.componentName+".FindByDocumentNumber", "error", err, "x_trace_id", traceID)
 		return nil, coreerr.DatabasePrepareStatementError
 	}
 	defer stmt.Close()
@@ -71,13 +77,13 @@ func (a *AccountPostgresRepository) FindByDocumentNumber(ctx context.Context, do
 	if done {
 		return acc, err
 	}
-
 	err = stmt.QueryRowContext(ctx, documentNumber).Scan(&selectedAccount.AccountID, &selectedAccount.DocumentNumber)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			a.log.Warn(a.componentName+".FindByDocumentNumber", "error", err, "x_trace_id", traceID)
 			return nil, coreerr.AccountNotFoundError
 		}
-		a.log.Error(a.componentName+".FindByDocumentNumberQueryRowContext", "err", err)
+		a.log.Warn(a.componentName+".FindByDocumentNumber", "error", err, "x_trace_id", traceID)
 		return nil, coreerr.DatabaseQueryError
 	}
 
@@ -85,7 +91,8 @@ func (a *AccountPostgresRepository) FindByDocumentNumber(ctx context.Context, do
 }
 
 func (a *AccountPostgresRepository) Save(ctx context.Context, newAccount *account.Account) (*account.Account, error) {
-	a.log.Debug(a.componentName+".Save", "request", newAccount)
+	traceID := contextutils.GetTraceID(ctx)
+	a.log.Debug(a.componentName+".Save", "newAccount", newAccount, "x_trace_id", traceID)
 	accountModel := mapper.ToAccountModel(newAccount)
 	if accountModel == nil {
 		return nil, coreerr.InvalidParametersError
@@ -93,25 +100,28 @@ func (a *AccountPostgresRepository) Save(ctx context.Context, newAccount *accoun
 
 	tx, err := a.connectionData.Db.BeginTx(ctx, nil)
 	if err != nil {
+		a.log.Warn(a.componentName+".Save", "error", err, "x_trace_id", traceID)
 		return nil, coreerr.DatabaseCreateTransactionError
 	}
 	defer tx.Rollback()
-	stmt, err := tx.PrepareContext(ctx, "insert into accounts (account_id, document_number) values ($1, $2)")
+	stmt, err := tx.PrepareContext(ctx, "INSERT INTO accounts (document_number) VALUES ($1) RETURNING account_id, document_number;")
 	if err != nil {
+		a.log.Warn(a.componentName+".Save", "error", err, "x_trace_id", traceID)
 		return nil, coreerr.DatabasePrepareStatementError
 	}
 	defer stmt.Close()
 	err = stmt.QueryRowContext(
 		ctx,
-		accountModel.AccountID,
 		accountModel.DocumentNumber).Scan(
 		&accountModel.AccountID,
 		&accountModel.DocumentNumber)
 	if err != nil {
+		a.log.Warn(a.componentName+".Save", "error", err, "x_trace_id", traceID)
 		return nil, coreerr.DatabaseInsertionError
 	}
 	err = tx.Commit()
 	if err != nil {
+		a.log.Warn(a.componentName+".Save", "error", err, "x_trace_id", traceID)
 		return nil, coreerr.DatabaseFailToCommitError
 	}
 	return mapper.ToAccountEntity(accountModel), nil

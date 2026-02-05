@@ -22,6 +22,7 @@ cache:
 distributed_lock:
   ttl_ms: 5000
   retry_interval_ms: 2000
+  waiting_time_ms: 4500
 
 `)
 

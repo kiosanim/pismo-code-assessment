@@ -5,6 +5,9 @@ import (
 	"github.com/kiosanim/pismo-code-assessment/application/account/dto"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/cache"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/errors"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/factory"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/lock"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/logger"
 	"github.com/kiosanim/pismo-code-assessment/internal/domains/account"
 	"github.com/kiosanim/pismo-code-assessment/internal/infra/logger/mock"
 	"github.com/stretchr/testify/suite"
@@ -18,22 +21,36 @@ type AccountServiceTestSuite struct {
 	cache      cache.CacheRepository
 	service    *AccountService
 	ctx        context.Context
-	log        *mock.MockLogger
+	log        logger.Logger
+	factory    factory.Factory
+	locker     lock.DistributedLockManager
 }
 
 func (s *AccountServiceTestSuite) SetupTest() {
+	s.ctx = context.Background()
 	s.log = mock.NewMockLogger()
 	s.repository = account.NewAccountRepositoryMock()
 	control := gomock.NewController(s.T())
 	defer control.Finish()
 	s.cache = cache.NewCacheRepositoryMock(control)
-	s.service = NewAccountService(s.repository, s.cache, s.log)
-	s.ctx = context.Background()
+	dlm := lock.NewDistributedLockManagerMock(control)
+	s.locker = dlm
+	dlm.EXPECT().WaitToLockUsingDefaultTimeConfiguration(s.ctx, lock.AccountCreationLockKey).Return(&lock.Lock{
+		Key:    lock.AccountCreationLockKey,
+		Value:  "xpto",
+		Client: nil,
+	}, nil)
+	fm := factory.NewFactoryMock(control)
+	s.factory = fm
+	fm.EXPECT().AccountRepository().Return(s.repository).AnyTimes()
+	fm.EXPECT().CacheRepository().Return(s.cache).AnyTimes()
+	fm.EXPECT().DistributedLockManager().Return(s.locker).AnyTimes()
+	fm.EXPECT().Log().Return(s.log).AnyTimes()
+	s.service = NewAccountService(s.factory)
 }
 
 func (s *AccountServiceTestSuite) TestNewAccountService() {
-	repo := account.NewAccountRepositoryMock()
-	service := NewAccountService(repo, s.cache, s.log)
+	service := NewAccountService(s.factory)
 	if service == nil {
 		s.Fail("account service should not be nil")
 	}

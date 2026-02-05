@@ -18,7 +18,8 @@ type Lock struct {
 }
 
 type DistributedLockManager interface {
-	Lock(ctx context.Context, key string) (*Lock, error)
-	WaitToLock(ctx context.Context, key string, waitingTime time.Duration) (*Lock, error)
+	Lock(ctx context.Context, key string, ttl time.Duration) (*Lock, error)
+	WaitToLock(ctx context.Context, key string, ttl time.Duration, waitingTimeMilliseconds time.Duration, retryMilliseconds time.Duration) (*Lock, error)
+	WaitToLockUsingDefaultTimeConfiguration(ctx context.Context, key string) (*Lock, error)
 	Unlock(ctx context.Context, acquiredLock *Lock) error
 }
