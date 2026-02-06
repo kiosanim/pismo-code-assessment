@@ -66,6 +66,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/accounts/list/{cursor}/{limit}": {
+            "get": {
+                "description": "Returns a list of accounts",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Accounts"
+                ],
+                "summary": "List accounts with pagination",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Pagination cursor AccountID",
+                        "name": "cursor",
+                        "in": "path"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Max number of accounts to return (default 10)",
+                        "name": "limit",
+                        "in": "path"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.AccountDTO"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/accounts/{id}": {
             "get": {
                 "description": "Returns an account by ID",
@@ -187,6 +233,17 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "dto.AccountDTO": {
+            "type": "object",
+            "properties": {
+                "account_id": {
+                    "type": "integer"
+                },
+                "document_number": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.CreateAccountRequest": {
             "type": "object",
             "required": [

@@ -127,8 +127,7 @@ func (a *AccountPostgresRepository) Save(ctx context.Context, newAccount *accoun
 	return mapper.ToAccountEntity(accountModel), nil
 }
 
-func (a *AccountPostgresRepository) List(ctx context.Context, limit int, cursorID int64) ([]account.Account, error) {
-
+func (a *AccountPostgresRepository) List(ctx context.Context, limit int64, cursorID int64) ([]account.Account, error) {
 	traceID := contextutils.GetTraceID(ctx)
 	a.log.Debug(a.componentName+".List", "limit", limit, "cursorID", cursorID, "x_trace_id", traceID)
 	tx, err := a.connectionData.Db.BeginTx(ctx, nil)

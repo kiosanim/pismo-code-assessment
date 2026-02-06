@@ -13,7 +13,7 @@ make docker-provision
 ```
 
 This single command will:
-1. Build and start all Docker containers (API + PostgreSQL)
+1. Build and start all Docker containers (API + PostgreSQL + Redis)
 2. Run all database migrations automatically
 3. Make the API available at `http://localhost:8080`
 4. Swagger documentation at `http://localhost:8080/swagger/index.html`
@@ -53,7 +53,10 @@ The system is built using **Go 1.25.1** and follows **Clean Architecture** princ
 - Retrieve account information by ID
 - Create financial transactions (purchases, installment purchases, withdrawals, payments)
 - Automatic amount sign handling for debit/credit operations
-- Request tracing with x-trace-id headers
+- **Distributed locking** with Redis for concurrent request handling
+- **Redis caching** layer for improved performance
+- Request tracing with x-trace-id headers (included in all log messages)
+- Structured JSON logging with component tracking
 - Swagger/OpenAPI documentation
 - Docker containerization
 - Database migrations with Goose
@@ -101,10 +104,11 @@ The project follows **Clean Architecture**, organized into four main layers:
 - **Gin (v1.11.0)**: HTTP web framework
 - **Context**: Request lifecycle management
 
-### Database
+### Database & Cache
 - **PostgreSQL 15**: Primary database
-- **Bun (v1.2.16)**: SQL ORM and query builder
+- **Redis 8.4.0**: Caching and distributed locks
 - **lib/pq (v1.10.9)**: PostgreSQL driver
+- **go-redis/v9 (v9.17.3)**: Redis client
 - **Goose (v3.26.0)**: Database migration tool
 
 ### Configuration & CLI
@@ -141,10 +145,13 @@ pismo-code-assessment/
 ├── internal/                             # Private application code
 │   ├── core/                             # Core abstractions
 │   │   ├── adapter/                      # Connection adapters
+│   │   ├── cache/                        # Cache interfaces
 │   │   ├── config/                       # Configuration interfaces
 │   │   ├── contextkeys/                  # Context key constants
 │   │   ├── contextutils/                 # Context utilities
+│   │   ├── errors/                       # Application error definitions
 │   │   ├── factory/                      # Factory interfaces
+│   │   ├── lock/                         # Distributed lock interfaces
 │   │   └── logger/                       # Logger interfaces
 │   │
 │   ├── domains/                          # Domain layer (business logic)
@@ -166,11 +173,14 @@ pismo-code-assessment/
 │       │   └── viper_config.go           # Viper config implementation
 │       ├── logger/
 │       │   └── slog_logger.go            # Structured logging
+│       ├── lock/
+│       │   └── redis_distributed_lock_manager.go  # Redis distributed lock
 │       ├── factory/
 │       │   └── app_factory.go            # Dependency injection factory
 │       └── database/
 │           ├── connection/
-│           │   └── postgres_connection.go # PostgreSQL connection
+│           │   ├── postgres_connection.go # PostgreSQL connection
+│           │   └── redis_connection.go    # Redis connection
 │           ├── migrations/                # SQL migration files
 │           │   ├── 01_create_tables.sql
 │           │   └── 02_insert_operation_type.sql
@@ -184,7 +194,8 @@ pismo-code-assessment/
 │           │   └── operation_type_mapper.go
 │           └── repository/                # Repository implementations
 │               ├── account_postgres_repository.go
-│               └── transaction_postgres_repository.go
+│               ├── transaction_postgres_repository.go
+│               └── redis_repository.go    # Redis cache repository
 │
 ├── application/                           # Application layer (use cases)
 │   ├── account/
@@ -234,7 +245,6 @@ pismo-code-assessment/
 The domain layer contains the core business logic and is independent of any external frameworks or libraries.
 
 ### Account Domain
-
 **Location**: `internal/domains/account/`
 
 #### Account Entity (`entity.go`)
@@ -353,14 +363,17 @@ The application layer orchestrates use cases by coordinating domain entities and
    - Returns error if not found
 
 2. **Create** (`account_service.go:40`)
+   - **Acquires distributed lock** to prevent duplicate accounts during concurrent requests
    - Validates document number using Brazilian CPF/CNPJ validation
    - Checks if account already exists for document number
    - Creates new account if validation passes
+   - Releases lock after operation
    - Returns created account or error
 
 **Dependencies**:
 - `AccountRepository`: For data persistence
-- `Logger`: For structured logging
+- `DistributedLockManager`: For concurrent request handling
+- `Logger`: For structured logging (includes x-trace-id)
 
 ---
 
@@ -373,10 +386,12 @@ The application layer orchestrates use cases by coordinating domain entities and
 **Key Methods**:
 
 1. **Create** (`transaction_service.go:29`)
+   - **Acquires distributed lock** to ensure transaction consistency
    - Validates request parameters
    - Verifies account exists
    - Reverses amount sign for debit operations
    - Saves transaction to repository
+   - Releases lock after operation
    - Returns transaction with original sign for display
 
 2. **validateRequestParameters** (`transaction_service.go:64`)
@@ -397,7 +412,8 @@ The application layer orchestrates use cases by coordinating domain entities and
 **Dependencies**:
 - `AccountRepository`: To verify account exists
 - `TransactionRepository`: For transaction persistence
-- `Logger`: For structured logging
+- `DistributedLockManager`: For concurrent request handling
+- `Logger`: For structured logging (includes x-trace-id)
 
 ---
 
@@ -449,9 +465,82 @@ type CreateTransactionResponse struct {
 **Location**: `internal/infra/database/connection/postgres_connection.go`
 
 **Implementation**: `PostgresConnection`
-- Uses Bun ORM with PostgreSQL dialect
+- Uses prepared statements with parameterized queries
 - Connection string from configuration
-- Returns `ConnectionData` with Bun DB instance
+- Returns `ConnectionData` with database instance
+
+---
+
+### Redis Connection
+
+**Location**: `internal/infra/database/connection/redis_connection.go`
+
+**Implementation**: `RedisConnection`
+- Establishes Redis client connection
+- URL parsing from configuration
+- Connection validation with test operations
+- Returns `CacheConnectionData` with Redis client
+
+---
+
+### Distributed Lock Manager
+
+**Location**: `internal/infra/lock/redis_distributed_lock_manager.go`
+
+**Implementation**: `RedisDistributedLockManager`
+
+Implements distributed locking using Redis to handle concurrent requests safely.
+
+**Methods**:
+
+1. **Lock** (`redis_distributed_lock_manager.go:37`)
+   - Attempts to acquire lock immediately using Redis `SetNX`
+   - Returns `Lock` struct with key and value on success
+   - Returns `DistributedLockFailToAcquire` error if lock is held
+
+2. **WaitToLock** (`redis_distributed_lock_manager.go:57`)
+   - Retries lock acquisition with configurable intervals
+   - Waits until timeout or lock acquired
+   - Supports context cancellation
+
+3. **WaitToLockUsingDefaultTimeConfiguration** (`redis_distributed_lock_manager.go:80`)
+   - Uses configuration file settings for TTL, retry interval, and waiting time
+   - Convenience method for standard lock operations
+
+4. **Unlock** (`redis_distributed_lock_manager.go:90`)
+   - Uses Redis Lua script for atomic unlock operation
+   - Verifies lock ownership before release (prevents lock hijacking)
+   - Script pattern recommended by Redis documentation
+
+**Lock Keys Used**:
+- `lock-account-creation`: Serializes account creation operations
+- `lock-transaction-creation`: Serializes transaction creation operations
+
+**Configuration** (in `config.yaml`):
+```yaml
+distributed_lock:
+  ttl_ms: 5000           # Lock TTL in milliseconds
+  retry_interval_ms: 2000 # Retry interval when waiting for lock
+  waiting_time_ms: 4500   # Maximum time to wait for lock acquisition
+```
+
+---
+
+### Redis Cache Repository
+
+**Location**: `internal/infra/database/repository/redis_repository.go`
+
+**Implementation**: `RedisRepository`
+
+Provides cache operations using Redis.
+
+**Methods**:
+- `Set`, `SetNX`, `Get`, `Del`, `Exists`, `Expire`: Basic key-value operations
+- `HSet`, `HGet`, `HGetAll`, `HDel`, `HExists`, `HExpire`: Hash operations
+
+**Used For**:
+- Distributed lock implementation
+- General caching needs
 
 ---
 
@@ -504,10 +593,18 @@ type CreateTransactionResponse struct {
 app:
   env: "development"
   address: ":8080"
-  loglevel: "debug"
+  log_level: "debug"
 
 database:
-  dsn: "postgres://user:password@host:port/database?sslmode=disable"
+  url: "postgres://user:password@host:port/database?sslmode=disable"
+
+cache:
+  url: "redis://localhost:6379/0"
+
+distributed_lock:
+  ttl_ms: 5000              # Lock time-to-live in milliseconds
+  retry_interval_ms: 2000   # Interval between lock acquisition retries
+  waiting_time_ms: 4500     # Maximum time to wait for lock
 ```
 
 **Config Paths**:
@@ -849,7 +946,13 @@ database:
      - Database: `pismo_db`
    - Healthcheck: Waits for PostgreSQL to be ready
 
-2. **pismo-api**:
+2. **redis**:
+   - Image: `redis:8.4.0-alpine`
+   - Port: 6379
+   - Used for caching and distributed locks
+   - Auto-restarts on failure
+
+3. **pismo-api**:
    - Built from Dockerfile
    - Port: 8080
    - Depends on postgres service
@@ -1289,7 +1392,12 @@ go test -cover ./...
 - Composable request processing (tracing, logging)
 - Cross-cutting concerns separated from business logic
 
-### 6. Interface Segregation
+### 6. Distributed Lock Pattern
+- Redis-based locking for concurrent request handling
+- Prevents race conditions during account/transaction creation
+- Atomic unlock operations using Lua scripts
+
+### 7. Interface Segregation
 - Small, focused interfaces
 - Easy to mock for testing
 - Services depend on interfaces, not concrete implementations
@@ -1323,20 +1431,23 @@ go test -cover ./...
 ## Logging Strategy
 
 ### Structured Logging
-- Uses Go's `slog` package
+- Uses Go's native `slog` package
+- JSON output format for easy parsing
 - Key-value pairs for context
-- Component name tracking
+- Component name tracking (derived from struct names)
 
 ### Log Levels
-- **Debug**: Detailed operation logs (parameters, queries)
+- **Debug**: Detailed operation logs (parameters, queries, lock operations)
 - **Info**: General application flow
-- **Warn**: Warning conditions
+- **Warn**: Warning conditions (lock contention, retries)
 - **Error**: Error conditions
 
 ### Request Tracing
 - x-trace-id header in all requests
-- Trace ID propagated through context
-- Enables request tracking across services
+- **Trace ID included in ALL log messages** for full request tracking
+- Trace ID propagated through context across all layers
+- Generated as UUID if not provided by client
+- Enables end-to-end request tracking across services
 
 ---
 
@@ -1349,7 +1460,7 @@ go test -cover ./...
 - Operation type validation
 
 ### SQL Injection Prevention
-- Uses parameterized queries (Bun ORM)
+- Uses prepared statements with parameterized queries
 - No raw SQL string concatenation
 
 ### Database Credentials
@@ -1364,12 +1475,17 @@ go test -cover ./...
 ### Database
 - Indexes on primary keys
 - Unique constraint on document_number
-- Transaction pooling via Bun
+- Prepared statements with connection pooling
+
+### Cache
+- Redis caching for frequently accessed data
+- Distributed locks prevent duplicate operations
+- Atomic operations using Lua scripts
 
 ### Application
 - Efficient JSON serialization (Gin)
 - Context-based request cancellation
-- Connection pooling for database
+- Connection pooling for database and Redis
 
 ### Docker
 - Multi-stage builds for smaller images
@@ -1386,7 +1502,9 @@ This project demonstrates a well-structured, maintainable Go application followi
 - **Interface-based design** for flexibility and testability
 - **Domain-driven design** with rich domain models
 - **Infrastructure independence** in business logic
-- **Production-ready practices**: Docker, migrations, logging, documentation
+- **Distributed locking** for concurrent request handling with Redis
+- **Request tracing** with x-trace-id propagation through all layers
+- **Production-ready practices**: Docker, migrations, structured logging, documentation
 - **Brazilian market specificity**: CPF/CNPJ validation
 - **Sound business rules**: Automatic debit/credit handling
 

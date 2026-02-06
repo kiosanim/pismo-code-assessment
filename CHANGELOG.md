@@ -10,6 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Add x-trace-id in log messages
 - Add New Mocks
 - Fix Broken Tests
+- Updated README.md
+- Add LAccs
 
 ## [0.6.0] 2026-02-04
 - Add sources already commited

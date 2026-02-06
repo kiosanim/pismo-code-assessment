@@ -18,6 +18,7 @@ func SetupRouter(accountHandler handler.AccountHandler, transactionHandler handl
 	{
 		api.POST("/accounts", accountHandler.CreateAccount)
 		api.GET("/accounts/:account_id", accountHandler.GetAccountByID)
+		api.GET("/accounts/list/:cursor/:limit", accountHandler.ListAccounts)
 		api.POST("/transactions", transactionHandler.CreateTransaction)
 		api.GET("/transactions/:transaction_id", transactionHandler.GetTransactionByID)
 	}

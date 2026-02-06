@@ -24,3 +24,20 @@ func FindEntityToResponse(entity *account.Account) *dto.FindAccountByIdResponse 
 		DocumentNumber: entity.DocumentNumber,
 	}
 }
+
+func ListAccountsToResponse(entities []account.Account, limit int64, cursor int64) *dto.ListAccountsResponse {
+	var accountsDTO []dto.AccountDTO
+
+	for _, entity := range entities {
+		accountDTO := dto.AccountDTO{
+			AccountID:      entity.AccountID,
+			DocumentNumber: entity.DocumentNumber,
+		}
+		accountsDTO = append(accountsDTO, accountDTO)
+	}
+	return &dto.ListAccountsResponse{
+		Accounts: accountsDTO,
+		Limit:    limit,
+		Cursor:   cursor,
+	}
+}

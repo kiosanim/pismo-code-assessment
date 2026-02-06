@@ -91,3 +91,21 @@ func (a *AccountService) Create(ctx context.Context, request dto.CreateAccountRe
 	response := mapper.CreateEntityToResponse(output)
 	return response, nil
 }
+
+func (a *AccountService) List(ctx context.Context, request dto.ListAccountsRequest) (*dto.ListAccountsResponse, error) {
+	traceID := contextutils.GetTraceID(ctx)
+	a.log.Debug(a.componentName+".List", "request", request, "x_trace_id", traceID)
+	var lastID int64 = 0
+	if request.Cursor <= 0 {
+		return nil, coreerr.InvalidParametersError
+	}
+	accounts, err := a.accountRepository.List(ctx, request.Limit, lastID)
+	if err != nil {
+		return nil, err
+	}
+	nextCursor := int64(0)
+	if len(accounts) > 0 {
+		nextCursor = accounts[len(accounts)-1].AccountID
+	}
+	return mapper.ListAccountsToResponse(accounts, request.Limit, nextCursor), nil
+}
