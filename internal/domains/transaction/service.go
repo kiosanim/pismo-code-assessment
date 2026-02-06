@@ -6,5 +6,6 @@ import (
 )
 
 type Service interface {
-	Create(ctx context.Context, input dto.CreateTransactionRequest) (*dto.CreateTransactionResponse, error)
+	Create(ctx context.Context, request dto.CreateTransactionRequest) (*dto.CreateTransactionResponse, error)
+	FindByID(ctx context.Context, request dto.FindTransactionByIdRequest) (*dto.FindTransactionByIdResponse, error)
 }

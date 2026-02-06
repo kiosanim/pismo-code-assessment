@@ -146,6 +146,44 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/transactions/{id}": {
+            "get": {
+                "description": "Returns a transaction by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Transactions"
+                ],
+                "summary": "Get transaction by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Transaction ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.FindTransactionByIdResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -188,17 +226,8 @@ const docTemplate = `{
         "dto.CreateTransactionResponse": {
             "type": "object",
             "properties": {
-                "account_id": {
-                    "type": "integer"
-                },
-                "amount": {
-                    "type": "number"
-                },
-                "operation_type_id": {
-                    "type": "integer"
-                },
-                "transaction_id": {
-                    "type": "integer"
+                "transaction": {
+                    "$ref": "#/definitions/dto.TransactionDTO"
                 }
             }
         },
@@ -210,6 +239,31 @@ const docTemplate = `{
                 },
                 "document_number": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.FindTransactionByIdResponse": {
+            "type": "object",
+            "properties": {
+                "transaction": {
+                    "$ref": "#/definitions/dto.TransactionDTO"
+                }
+            }
+        },
+        "dto.TransactionDTO": {
+            "type": "object",
+            "properties": {
+                "account_id": {
+                    "type": "integer"
+                },
+                "amount": {
+                    "type": "number"
+                },
+                "operation_type_id": {
+                    "type": "integer"
+                },
+                "transaction_id": {
+                    "type": "integer"
                 }
             }
         }

@@ -34,6 +34,16 @@ func (tr *TransactionRepositoryMock) FindOperationTypeByID(ctx context.Context, 
 	return p, nil
 }
 
+func (tr *TransactionRepositoryMock) FindTransactionByID(ctx context.Context, transactionID int64) (*Transaction, error) {
+	args := tr.Called(ctx, transactionID)
+	val := args.Get(0)
+	p, ok := val.(*Transaction)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return p, nil
+}
+
 type TransactionServiceMock struct {
 	mock.Mock
 }

@@ -11,10 +11,19 @@ const ConfigFileName = "config.yaml"
 var FileContent = []byte(`app:
   env: "development"
   address: ":8080"
-  loglevel: "debug"
+  log_level: "debug"
 
 database:
-  dsn: "postgres://pismo:123456@postgres:5432/pismo_db?sslmode=disable"
+  url: "postgres://user:password@localhost:5432/database?sslmode=disable"
+
+cache:
+  url: "redis://localhost:6379/0"
+
+distributed_lock:
+  ttl_ms: 5000
+  retry_interval_ms: 2000
+  waiting_time_ms: 4500
+
 `)
 
 func main() {

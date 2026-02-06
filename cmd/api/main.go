@@ -2,39 +2,17 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/kiosanim/pismo-code-assessment/interfaces/http/router"
-	"github.com/kiosanim/pismo-code-assessment/internal/core/adapter"
-	corecfg "github.com/kiosanim/pismo-code-assessment/internal/core/config"
-	"github.com/kiosanim/pismo-code-assessment/internal/infra/config"
-	"github.com/kiosanim/pismo-code-assessment/internal/infra/database/connection"
 	"github.com/kiosanim/pismo-code-assessment/internal/infra/factory"
 	"github.com/kiosanim/pismo-code-assessment/internal/infra/logger"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 )
-
-func setupConfig() *corecfg.Configuration {
-	path, _ := os.Getwd()
-	cfg, err := config.LoadConfig(path)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return cfg
-}
-
-func setupDatabase(ctx context.Context, cfg *corecfg.Configuration) *adapter.ConnectionData {
-	var conn adapter.Connection = connection.NewPostgresConnection(cfg)
-	dbConnectionData, err := conn.Connect(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return dbConnectionData
-}
 
 // @title           Pismo Code Assessment API
 // @version         1.0
@@ -51,24 +29,17 @@ func setupDatabase(ctx context.Context, cfg *corecfg.Configuration) *adapter.Con
 // @BasePath  /
 func main() {
 	ctx := context.Background()
-	cfg := setupConfig()
-	sLogger := logger.NewSlogLogger(ctx, cfg)
-	dbConnectionData := setupDatabase(ctx, cfg)
-	appFactory := factory.NewAppFactory(cfg, dbConnectionData, sLogger)
-	if appFactory == nil {
-		sLogger.Error("App Factory not initialized")
-		os.Exit(1)
-	}
-	r := router.NewRouterFactory(*appFactory, sLogger)
+	appFactory := factory.NewAppFactory(ctx)
+	sLogger := logger.NewSlogLogger(ctx, appFactory.Configuration())
+	r := router.NewRouterFactory(appFactory, sLogger)
 	server := &http.Server{
-		Addr:    cfg.App.Address,
+		Addr:    appFactory.Configuration().App.Address,
 		Handler: r,
 	}
 	go func() {
 		sLogger.Info(fmt.Sprintf("Server Listening on: %s", server.Addr))
 		err := server.ListenAndServe()
-		if err != nil &&
-			err != http.ErrServerClosed {
+		if err != nil && errors.Is(err, http.ErrServerClosed) {
 			sLogger.Error(fmt.Sprintf("ListenAndServe Error: %v", err))
 			os.Exit(2)
 		}
@@ -79,9 +50,29 @@ func main() {
 	sLogger.Warn("Shutdown Server...")
 	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	sLogger.Warn("Closing Database Connection...")
+	defer closeDBConnection(&appFactory, *sLogger)
+	sLogger.Warn("Closing Cache Connection...")
+	defer closeCacheConnection(&appFactory, *sLogger)
 	err := server.Shutdown(ctxWithTimeout)
 	if err != nil {
 		sLogger.Error(fmt.Sprintf("Server Shutdown Error: %v", err))
 	}
-	sLogger.Info("Server Shutdown Completed")
+	sLogger.Warn("Server Shutdown Completed")
+}
+
+func closeDBConnection(appFactory *factory.AppFactory, log logger.SlogLogger) {
+	err := appFactory.ConnectionData().Db.Close()
+	if err != nil {
+		log.Error(fmt.Sprintf("Failed to close Database Connection: %v", err))
+	}
+	return
+}
+
+func closeCacheConnection(appFactory *factory.AppFactory, log logger.SlogLogger) {
+	err := appFactory.CacheConnectionData().Rdb.Close()
+	if err != nil {
+		log.Error(fmt.Sprintf("Failed to close Cache Connection: %v", err))
+	}
+	return
 }

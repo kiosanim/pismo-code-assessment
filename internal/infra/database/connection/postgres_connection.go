@@ -1,18 +1,16 @@
 package connection
 
 import (
-	"context"
 	"database/sql"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/adapter"
 	"github.com/kiosanim/pismo-code-assessment/internal/core/config"
-	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/pgdialect"
-	"github.com/uptrace/bun/driver/pgdriver"
+	"github.com/kiosanim/pismo-code-assessment/internal/core/errors"
+	_ "github.com/lib/pq"
 )
 
 type PostgresConnection struct {
 	configuration  *config.Configuration
-	connectionData *adapter.ConnectionData
+	connectionData *adapter.DatabaseConnectionData
 }
 
 func NewPostgresConnection(configuration *config.Configuration) *PostgresConnection {
@@ -21,17 +19,15 @@ func NewPostgresConnection(configuration *config.Configuration) *PostgresConnect
 	}
 }
 
-func (p *PostgresConnection) Connect(ctx context.Context) (*adapter.ConnectionData, error) {
-	sqlDb := sql.OpenDB(pgdriver.NewConnector(
-		pgdriver.WithDSN(p.configuration.Database.Dsn),
-	))
-	if err := sqlDb.Ping(); err != nil {
-		return nil, adapter.ConnectionFailedError
+func (p *PostgresConnection) Connect() (*adapter.DatabaseConnectionData, error) {
+	db, err := sql.Open("postgres", p.configuration.Database.URL)
+	if err != nil {
+		return nil, errors.DatabaseConnectionFailedError
 	}
-	bunDb := bun.NewDB(sqlDb, pgdialect.New())
-	p.connectionData = &adapter.ConnectionData{
-		SqlDB: sqlDb,
-		BunDB: bunDb,
+	err = db.Ping()
+	if err != nil {
+		return nil, errors.DatabaseConnectionValidationFailedError
 	}
+	p.connectionData = &adapter.DatabaseConnectionData{db}
 	return p.connectionData, nil
 }

@@ -19,6 +19,7 @@ func SetupRouter(accountHandler handler.AccountHandler, transactionHandler handl
 		api.POST("/accounts", accountHandler.CreateAccount)
 		api.GET("/accounts/:account_id", accountHandler.GetAccountByID)
 		api.POST("/transactions", transactionHandler.CreateTransaction)
+		api.GET("/transactions/:transaction_id", transactionHandler.GetTransactionByID)
 	}
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	return router

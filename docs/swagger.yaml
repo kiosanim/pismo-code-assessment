@@ -25,6 +25,23 @@ definitions:
     type: object
   dto.CreateTransactionResponse:
     properties:
+      transaction:
+        $ref: '#/definitions/dto.TransactionDTO'
+    type: object
+  dto.FindAccountByIdResponse:
+    properties:
+      account_id:
+        type: integer
+      document_number:
+        type: string
+    type: object
+  dto.FindTransactionByIdResponse:
+    properties:
+      transaction:
+        $ref: '#/definitions/dto.TransactionDTO'
+    type: object
+  dto.TransactionDTO:
+    properties:
       account_id:
         type: integer
       amount:
@@ -33,13 +50,6 @@ definitions:
         type: integer
       transaction_id:
         type: integer
-    type: object
-  dto.FindAccountByIdResponse:
-    properties:
-      account_id:
-        type: integer
-      document_number:
-        type: string
     type: object
 host: localhost:8080
 info:
@@ -133,6 +143,31 @@ paths:
               type: string
             type: object
       summary: Create a transaction
+      tags:
+      - Transactions
+  /transactions/{id}:
+    get:
+      description: Returns a transaction by ID
+      parameters:
+      - description: Transaction ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.FindTransactionByIdResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get transaction by ID
       tags:
       - Transactions
 swagger: "2.0"
