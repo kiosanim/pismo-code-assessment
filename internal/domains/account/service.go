@@ -8,4 +8,5 @@ import (
 type Service interface {
 	FindByID(ctx context.Context, request dto.FindAccountByIdRequest) (*dto.FindAccountByIdResponse, error)
 	Create(ctx context.Context, response dto.CreateAccountRequest) (*dto.CreateAccountResponse, error)
+	List(ctx context.Context, request dto.ListAccountsRequest) (*dto.ListAccountsResponse, error)
 }

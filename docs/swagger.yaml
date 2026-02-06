@@ -1,5 +1,12 @@
 basePath: /
 definitions:
+  dto.AccountDTO:
+    properties:
+      account_id:
+        type: integer
+      document_number:
+        type: string
+    type: object
   dto.CreateAccountRequest:
     properties:
       document_number:
@@ -115,6 +122,36 @@ paths:
               type: string
             type: object
       summary: Get account by ID
+      tags:
+      - Accounts
+  /accounts/list/{cursor}/{limit}:
+    get:
+      description: Returns a list of accounts
+      parameters:
+      - description: Pagination cursor AccountID
+        in: path
+        name: cursor
+        type: integer
+      - description: Max number of accounts to return (default 10)
+        in: path
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.AccountDTO'
+            type: array
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List accounts with pagination
       tags:
       - Accounts
   /transactions:
