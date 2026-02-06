@@ -126,3 +126,42 @@ func (a *AccountPostgresRepository) Save(ctx context.Context, newAccount *accoun
 	}
 	return mapper.ToAccountEntity(accountModel), nil
 }
+
+func (a *AccountPostgresRepository) List(ctx context.Context, limit int, cursorID int64) ([]account.Account, error) {
+
+	traceID := contextutils.GetTraceID(ctx)
+	a.log.Debug(a.componentName+".List", "limit", limit, "cursorID", cursorID, "x_trace_id", traceID)
+	tx, err := a.connectionData.Db.BeginTx(ctx, nil)
+	if err != nil {
+		a.log.Warn(a.componentName+".List", "error", err, "x_trace_id", traceID)
+		return nil, coreerr.DatabaseCreateTransactionError
+	}
+	defer tx.Rollback()
+	stmt, err := tx.PrepareContext(ctx, "SELECT account_id, document_number FROM accounts WHERE account_id > $1 ORDER BY account_id LIMIT $2")
+	if err != nil {
+		a.log.Warn(a.componentName+".List", "error", err, "x_trace_id", traceID)
+		return nil, coreerr.DatabasePrepareStatementError
+	}
+	defer stmt.Close()
+	rows, err := stmt.QueryContext(ctx, cursorID, limit)
+	if err != nil {
+		a.log.Warn(a.componentName+".List", "error", err, "x_trace_id", traceID)
+		if err == sql.ErrNoRows {
+			return nil, coreerr.AccountNotFoundError
+		}
+		a.log.Debug(a.componentName+".List", "error", err)
+		return nil, coreerr.DatabaseQueryError
+	}
+	defer rows.Close()
+	var accounts []account.Account
+	for rows.Next() {
+		var account model.AccountModel
+		err = rows.Scan(&account.AccountID, &account.DocumentNumber)
+		if err != nil {
+			a.log.Warn(a.componentName+".List", "error", err, "x_trace_id", traceID)
+			return nil, err
+		}
+		accounts = append(accounts, *mapper.ToAccountEntity(&account))
+	}
+	return accounts, nil
+}
